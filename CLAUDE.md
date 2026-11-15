@@ -21,6 +21,7 @@ teket代替の1団体専用チケット販売システム（東京芸術劇場�
 - Python は ruff（lint/format）と ty（型）を通すこと。フロントは oxlint と `tsc -b` を通すこと
 - 画面変更時はモックモードで Playwright のスクショを撮ってユーザーに見せる（GitHub Pagesはユーザーが必要時に作成）
 - 秘密情報（Stripeキー等）はコード・Terraformの値に含めない
+- ブランチ名は `<種別>/<内容>`（例: `feat/backend-terraform`）。種別は `feat`（機能追加）/ `fix`（不具合修正）/ `chore`（設定・依存・CIなど）/ `docs`（文書のみ）/ `refactor`
 
 ## PR作成前のレビュー（必須）
 PRを作成する前に、必ずサブエージェント（Agentツール）にコードレビューを依頼すること。
