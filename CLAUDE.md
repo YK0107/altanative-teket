@@ -4,14 +4,15 @@ teket代替の1団体専用チケット販売システム（東京芸術劇場�
 
 ## 構成
 - `frontend/` Vite + React + TypeScript。`VITE_API_MODE=mock|live` でAPIクライアント切替（`src/api/`）
-- `frontend/src/data/seats.json` 座席データ。`tools/seatmap/extract.py` で座席表PDFから生成（PDFはコミットしない）
+- `frontend/src/data/seats.json` 座席データ。`tools/seatmap/extract.py` で `assets/geigeki-concert-hall-seatmap.pdf` から生成
+- `plans/` 仕様書(v0.1)と合意事項。**`plans/decisions.md` が v0.1 より優先**
 - `backend/` サーバー側（Python）。料金計算は `backend/app/pricing.py` と `frontend/src/lib/seats.ts` で同じ規則を保つ
 - `.github/workflows/ci.yml` PR時に front/back のチェックを実行
 
 ## コマンド
 - Frontend: `cd frontend && npm ci && npm run lint && npm run build`
 - Backend/tools（uv）: `uv sync && uv run ruff check . && uv run ruff format --check . && uv run ty check && uv run pytest -q`
-- 座席データ再生成: `uv run python tools/seatmap/extract.py <座席表.pdf> frontend/src/data/seats.json`
+- 座席データ再生成: `uv run python tools/seatmap/extract.py assets/geigeki-concert-hall-seatmap.pdf frontend/src/data/seats.json`
 
 ## ルール
 - Python は ruff（lint/format）と ty（型）を通すこと。フロントは oxlint と `tsc -b` を通すこと
