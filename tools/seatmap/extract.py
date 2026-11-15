@@ -6,10 +6,12 @@ usage: python tools/seatmap/extract.py <座席表.pdf> <出力.json>
 - 番号が連続し相互に最近傍な座席を連結して「列」を作り、延長線上の列記号(A〜T)を割当
 - 公式内訳表(1階676/2階683/3階640/計1,999)と一致することを検証
 """
+
 import collections
 import json
 import math
 import sys
+from typing import Any
 
 import pdfplumber
 
@@ -42,14 +44,14 @@ for c in pg.chars:
     if math.dist(shapes[i], (x, y)) < 6:
         groups[i].append((x * c["matrix"][0] - y * c["matrix"][1], c["text"]))
 
-seats = []
+seats: list[dict[str, Any]] = []
 for i, (x, y) in enumerate(shapes):
     if i in groups:
         num = int("".join(t for _, t in sorted(groups[i])))
         seats.append(dict(i=len(seats), x=x, y=y, num=num))
 
 # ---- 列記号 ----
-labels = []
+labels: list[dict[str, Any]] = []
 for c in pg.chars:
     if "A" <= c["text"] <= "T" and len(c["text"]) == 1 and "Myriad" in c["fontname"]:
         p = glyph_center(c)
@@ -107,17 +109,17 @@ for ch in chains:
         ux, uy = dx / L, dy / L
         ang = math.degrees(math.atan2(dy, dx))
     best = None
-    for l in labels:
+    for lab in labels:
         for end, sgn in ((a, -1), (b, 1)):
-            vx, vy = l["x"] - end["x"], l["y"] - end["y"]
+            vx, vy = lab["x"] - end["x"], lab["y"] - end["y"]
             if len(ch) > 1:
                 along, perp = (vx * ux + vy * uy) * sgn, abs(-vx * uy + vy * ux)
                 if 0 < along < 22 and perp < 4.5 and (best is None or along + perp * 3 < best[0]):
-                    best = (along + perp * 3, l)
+                    best = (along + perp * 3, lab)
             else:
                 d = math.hypot(vx, vy)
                 if d < 16 and abs(vy) < 4.5 and (best is None or d < best[0]):
-                    best = (d, l)
+                    best = (d, lab)
     # 2階バルコニーA列は扉で分断され列記号が途中にしかないため A 扱い
     row = best[1]["t"] if best else "A"
     mx = sum(seats[i]["x"] for i in ch) / len(ch)
@@ -135,7 +137,11 @@ for k, (x, y) in enumerate(wheel, 1):
 
 # ---- 階ごとの配置変換(2階バルコニーは紙面上1階の横に描かれているので2階本体の横へ移動) ----
 SHIFT = {"2LB": (-50, 372), "2RB": (50, 372)}
-AREA_NAME = {"1": "1階", "1LB": "1階LB", "1RB": "1階RB", "2": "2階", "3": "3階", "2LB": "2階LB", "2RB": "2階RB", "3LB": "3階LB", "3RB": "3階RB"}
+AREA_NAME = {
+    "1": "1階", "1LB": "1階LB", "1RB": "1階RB",
+    "2": "2階", "2LB": "2階LB", "2RB": "2階RB",
+    "3": "3階", "3LB": "3階LB", "3RB": "3階RB",
+}  # fmt: skip
 
 out_seats, ids = [], set()
 for s in seats:
@@ -149,13 +155,24 @@ for s in seats:
         cat = "A" if floor == 3 else "S"
     assert sid not in ids, sid
     ids.add(sid)
-    out_seats.append(dict(id=sid, f=floor, a=AREA_NAME[area], r=s["row"], n=s["num"],
-                          x=round(s["x"] + dx, 1), y=round(s["y"] + dy, 1), rot=s["rot"], c=cat))
+    out_seats.append(
+        dict(
+            id=sid,
+            f=floor,
+            a=AREA_NAME[area],
+            r=s["row"],
+            n=s["num"],
+            x=round(s["x"] + dx, 1),
+            y=round(s["y"] + dy, 1),
+            rot=s["rot"],
+            c=cat,
+        )
+    )
 
 out_labels = []
-for (area, row, _, _), l in row_labels.items():
+for (area, row, _, _), lab in row_labels.items():
     dx, dy = SHIFT.get(area, (0, 0))
-    out_labels.append(dict(f=int(area[0]), t=row, x=round(l["x"] + dx, 1), y=round(l["y"] + dy, 1)))
+    out_labels.append(dict(f=int(area[0]), t=row, x=round(lab["x"] + dx, 1), y=round(lab["y"] + dy, 1)))
 
 cnt = collections.Counter(s["f"] for s in out_seats if s["c"] != "W")
 assert (cnt[1], cnt[2], cnt[3]) == (676, 683, 640), cnt
@@ -164,8 +181,18 @@ for f in (1, 2, 3):
     xs = [s["x"] for s in out_seats if s["f"] == f]
     ys = [s["y"] for s in out_seats if s["f"] == f]
     pad = 18
-    floors.append(dict(f=f, name=f"{f}階", viewBox=[round(min(xs) - pad), round(min(ys) - pad - 25),
-                                                     round(max(xs) - min(xs) + 2 * pad), round(max(ys) - min(ys) + 2 * pad + 25)]))
-json.dump(dict(venue="東京芸術劇場 コンサートホール", floors=floors, seats=out_seats, labels=out_labels),
-          open(out_path, "w"), ensure_ascii=False, separators=(",", ":"))
+    view_box = [
+        round(min(xs) - pad),
+        round(min(ys) - pad - 25),
+        round(max(xs) - min(xs) + 2 * pad),
+        round(max(ys) - min(ys) + 2 * pad + 25),
+    ]
+    floors.append(dict(f=f, name=f"{f}階", viewBox=view_box))
+with open(out_path, "w") as fp:
+    json.dump(
+        dict(venue="東京芸術劇場 コンサートホール", floors=floors, seats=out_seats, labels=out_labels),
+        fp,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
 print("seats", len(out_seats), dict(cnt), "labels", len(out_labels))
