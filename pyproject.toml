@@ -3,10 +3,23 @@ name = "teket-alt"
 version = "0.1.0"
 description = "1団体専用チケット販売システム（backend / tools）"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "boto3>=1.44.3",
+    "fastapi>=0.163.0",
+    "mangum>=0.22.0",
+    "pyjwt>=2.15.1",
+    "segno>=1.6.6",
+    "stripe>=17.0.0",
+]
 
 [dependency-groups]
-dev = ["ruff", "ty", "pytest"]
+dev = [
+    "ruff",
+    "ty",
+    "pytest",
+    "moto>=5.2.5",
+    "httpx>=0.28.1",
+]
 tools = ["pdfplumber"]
 
 [tool.uv]
