@@ -49,6 +49,10 @@ export function fmtDateTime(iso: string) {
   })
 }
 
+export function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
+}
+
 export function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' })
 }

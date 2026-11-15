@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, ApiError } from '../api'
 import { SeatMap } from '../components/SeatMap'
-import { CATEGORY_NAME, calcTotal, fmtDateTime, fmtTime, seatLabel, seatMap, yen } from '../lib/seats'
+import { CATEGORY_NAME, calcTotal, fmtDate, fmtTime, seatLabel, seatMap, yen } from '../lib/seats'
 import type { EventInfo, SeatDef } from '../types'
 
 export function EventPage() {
@@ -51,14 +51,15 @@ export function EventPage() {
         <dl>
           <dt>日時</dt>
           <dd>
-            {fmtDateTime(ev.starts_at)} 開演（{fmtTime(ev.doors_open_at)} 開場）
+            {fmtDate(ev.starts_at)}
+            <br />
+            {fmtTime(ev.doors_open_at)}開場 {fmtTime(ev.starts_at)}開演
           </dd>
           <dt>会場</dt>
           <dd>{ev.venue}</dd>
           <dt>料金</dt>
           <dd>
             S席 {yen(ev.prices.S)} ／ A席 {yen(ev.prices.A)} ／ 車椅子席 {yen(ev.prices.W)}
-            <span className="note">（クーポンコードで1枚あたり{yen(ev.coupon_discount)}引き）</span>
           </dd>
         </dl>
         <p className="note">お支払い後のキャンセル・返金はできません（公演中止時を除く）。</p>

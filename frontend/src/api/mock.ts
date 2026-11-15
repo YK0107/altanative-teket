@@ -6,12 +6,12 @@ import { calcTotal, seatById, seatLabelById, seatMap } from '../lib/seats'
 
 const EVENT: EventInfo = {
   id: 'evt_2027',
-  name: '第1回 定期演奏会（仮）',
-  starts_at: '2027-03-20T05:00:00Z',
-  doors_open_at: '2027-03-20T04:15:00Z',
+  name: '一橋大学管弦楽団 第74回定期演奏会',
+  starts_at: '2026-12-02T09:30:00Z',
+  doors_open_at: '2026-12-02T08:30:00Z',
   venue: '東京芸術劇場 コンサートホール',
-  sales_start: '2026-12-01T01:00:00Z',
-  sales_end: '2027-03-20T04:00:00Z',
+  sales_start: '2026-11-15T01:00:00Z',
+  sales_end: '2026-12-02T08:30:00Z',
   on_sale: true,
   prices: { S: 1000, A: 500, W: 500 },
   coupon_discount: 500,
