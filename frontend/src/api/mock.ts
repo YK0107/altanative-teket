@@ -10,7 +10,7 @@ const EVENT: EventInfo = {
   starts_at: '2026-12-02T09:30:00Z',
   doors_open_at: '2026-12-02T08:30:00Z',
   venue: '東京芸術劇場 コンサートホール',
-  sales_start: '2026-12-01T01:00:00Z',
+  sales_start: '2026-11-15T01:00:00Z',
   sales_end: '2026-12-02T08:30:00Z',
   on_sale: true,
   prices: { S: 1000, A: 500, W: 500 },

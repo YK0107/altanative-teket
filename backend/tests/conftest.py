@@ -111,6 +111,13 @@ def env(monkeypatch, tmp_path: Path):
         d = db.Db("t", resource)
         ev = json.loads((Path(__file__).parents[1] / "event.json").read_text())
         ev["published"] = True
+        # 実際の公演日程に依存しないよう、テスト用の日程で上書きする（Clock は販売期間内）
+        ev.update(
+            starts_at="2027-03-20T05:00:00Z",
+            doors_open_at="2027-03-20T04:15:00Z",
+            sales_start="2026-12-01T01:00:00Z",
+            sales_end="2027-03-20T04:00:00Z",
+        )
         p = tmp_path / "event.json"
         p.write_text(json.dumps(ev))
         cli.seed_event(d, EVENT_ID, p)
