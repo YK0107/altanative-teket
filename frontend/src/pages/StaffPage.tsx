@@ -1,16 +1,21 @@
 import QrScanner from 'qr-scanner'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError } from '../api'
 import { SeatMap } from '../components/SeatMap'
 import { calcTotal, fmtTime, seatLabel, seatLabelById, seatMap, yen } from '../lib/seats'
 import type { AdminOrder, CheckinResult, EventInfo, SeatDef } from '../types'
 
+// 受付URLは /staff#key=xxx 。フラグメントはサーバーに送られずアクセスログに残らない
 function useStaffKey() {
-  const [q] = useSearchParams()
-  const fromUrl = q.get('key')
-  if (fromUrl) sessionStorage.setItem('staffKey', fromUrl)
-  return fromUrl ?? sessionStorage.getItem('staffKey') ?? ''
+  const [key] = useState(() => {
+    const m = window.location.hash.match(/key=([^&]+)/)
+    if (m) {
+      sessionStorage.setItem('staffKey', decodeURIComponent(m[1]))
+      history.replaceState(null, '', window.location.pathname)
+    }
+    return sessionStorage.getItem('staffKey') ?? ''
+  })
+  return key
 }
 
 export function StaffPage() {
@@ -47,25 +52,32 @@ function ScanTab({ staffKey }: { staffKey: string }) {
   const [result, setResult] = useState<CheckinResult | null>(null)
   const [camErr, setCamErr] = useState<string | null>(null)
   const [manual, setManual] = useState('')
+  const [netErr, setNetErr] = useState<string | null>(null)
   const busy = useRef(false)
+  // かざしたままのQRを再読取しないよう、直前のトークンは一定時間無視
+  const last = useRef<{ token: string; at: number }>({ token: '', at: 0 })
 
-  const check = async (raw: string) => {
-    if (busy.current) return
+  const check = async (raw: string, fromCamera: boolean) => {
+    const token = extractToken(raw)
+    if (!token || busy.current) return
+    if (fromCamera && token === last.current.token && Date.now() - last.current.at < 8000) return
     busy.current = true
+    last.current = { token, at: Date.now() }
     try {
-      setResult(await api.staffCheckin(staffKey, extractToken(raw)))
+      setResult(await api.staffCheckin(staffKey, token))
+      setNetErr(null)
       navigator.vibrate?.(150)
     } catch (e) {
-      setCamErr(e instanceof ApiError ? e.message : '通信エラー')
+      setNetErr(e instanceof ApiError ? e.message : '通信エラー。もう一度読み取ってください')
+      last.current = { token: '', at: 0 }
     }
-    setTimeout(() => {
-      busy.current = false
-    }, 1500)
+    busy.current = false
   }
+  const close = useCallback(() => setResult(null), [])
 
   useEffect(() => {
     if (!videoRef.current) return
-    const sc = new QrScanner(videoRef.current, (r) => check(r.data), { highlightScanRegion: true, maxScansPerSecond: 5 })
+    const sc = new QrScanner(videoRef.current, (r) => check(r.data, true), { highlightScanRegion: true, maxScansPerSecond: 5 })
     sc.start().catch(() => setCamErr('カメラを起動できません。ブラウザのカメラ許可を確認してください。'))
     return () => sc.destroy()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -81,14 +93,15 @@ function ScanTab({ staffKey }: { staffKey: string }) {
         className="row"
         onSubmit={(e) => {
           e.preventDefault()
-          check(manual)
+          check(manual, false)
           setManual('')
         }}
       >
         <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="チケットURL/コードを手入力" />
         <button>照合</button>
       </form>
-      {result && <CheckinResultView r={result} onClose={() => setResult(null)} />}
+      {netErr && <div className="error">{netErr}</div>}
+      {result && <CheckinResultView r={result} onClose={close} />}
     </section>
   )
 }
@@ -168,22 +181,36 @@ function BoxOfficeTab({ staffKey }: { staffKey: string }) {
   const [done, setDone] = useState<{ amount: number; seats: string[] } | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
-  const refresh = async () => {
+  const [busy, setBusy] = useState(false)
+
+  const refresh = useCallback(async () => {
     const st = await api.getSeatStatus()
     setSold(new Set(st.sold))
     setHeld(new Set(st.held))
-  }
+    // ネット販売で売れた席は選択から外す
+    setSel((x) => x.filter((id) => !st.sold.includes(id) && !st.held.includes(id)))
+  }, [])
   useEffect(() => {
     api.getEvent().then(setEv)
     refresh()
-  }, [])
+    const t = setInterval(refresh, 10000)
+    return () => clearInterval(t)
+  }, [refresh])
   const selSet = useMemo(() => new Set(sel), [sel])
   if (!ev) return null
   const { total } = calcTotal(ev, sel, Math.min(coupons, sel.length))
 
-  const toggle = (s: SeatDef) => setSel((x) => (x.includes(s.id) ? x.filter((i) => i !== s.id) : [...x, s.id]))
-  const sell = async () => {
+  const toggle = (s: SeatDef) => {
+    if (sel.includes(s.id)) return setSel(sel.filter((i) => i !== s.id))
+    if (sel.length >= ev.max_per_order) return setErr(`1回の販売は${ev.max_per_order}枚までです`)
     setErr(null)
+    setSel([...sel, s.id])
+  }
+  const sell = async () => {
+    if (busy) return
+    setBusy(true)
+    setErr(null)
+    setDone(null)
     try {
       const r = await api.boxOfficeSell(staffKey, { seat_ids: sel, coupon_count: Math.min(coupons, sel.length) })
       setDone({ amount: r.amount, seats: sel })
@@ -194,6 +221,7 @@ function BoxOfficeTab({ staffKey }: { staffKey: string }) {
       setErr(e instanceof ApiError ? e.message : '通信エラー')
       refresh()
     }
+    setBusy(false)
   }
 
   return (
@@ -218,8 +246,8 @@ function BoxOfficeTab({ staffKey }: { staffKey: string }) {
           お預かり金額 <b>{yen(total)}</b>（現金）
         </div>
         {err && <div className="error">{err}</div>}
-        <button className="primary" disabled={sel.length === 0} onClick={sell}>
-          現金受領・販売確定（そのまま入場済み）
+        <button className="primary" disabled={sel.length === 0 || busy} onClick={sell}>
+          {busy ? '処理中…' : '現金受領・販売確定（そのまま入場済み）'}
         </button>
         {done && (
           <div className="ok-box">

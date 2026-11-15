@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../api'
 import { CATEGORY_NAME, seatLabelById, yen } from '../lib/seats'
 import type { AdminOrder, AdminSummary, SeatCategory } from '../types'
 
 export function AdminPage() {
   const [jwt, setJwt] = useState(() => sessionStorage.getItem('adminJwt') ?? '')
+  const logout = useCallback(() => (sessionStorage.removeItem('adminJwt'), setJwt('')), [])
   if (!jwt) return <Login onLogin={(t) => (sessionStorage.setItem('adminJwt', t), setJwt(t))} />
-  return <Dashboard jwt={jwt} />
+  return <Dashboard jwt={jwt} onExpired={logout} />
 }
 
 function Login({ onLogin }: { onLogin: (jwt: string) => void }) {
@@ -37,20 +38,27 @@ function Login({ onLogin }: { onLogin: (jwt: string) => void }) {
   )
 }
 
-function Dashboard({ jwt }: { jwt: string }) {
+function Dashboard({ jwt, onExpired }: { jwt: string; onExpired: () => void }) {
   const [sum, setSum] = useState<AdminSummary | null>(null)
   const [orders, setOrders] = useState<AdminOrder[]>([])
   const [q, setQ] = useState('')
+  const [err, setErr] = useState<string | null>(null)
   useEffect(() => {
-    api.adminSummary(jwt).then(setSum)
-    api.adminOrders(jwt).then(setOrders)
-  }, [jwt])
+    // 期限切れ(401)ならログイン画面へ戻す
+    const onErr = (e: unknown) => {
+      if (e instanceof ApiError && e.status === 401) onExpired()
+      else setErr('読み込みに失敗しました')
+    }
+    api.adminSummary(jwt).then(setSum, onErr)
+    api.adminOrders(jwt).then(setOrders, onErr)
+  }, [jwt, onExpired])
   const filtered = orders.filter((o) => !q || `${o.name} ${o.email} ${o.order_id}`.toLowerCase().includes(q.toLowerCase()))
   const totalSold = sum ? Object.values(sum.sold).reduce((a, b) => a + b, 0) : 0
 
   return (
     <div className="page admin-page">
       <h1>販売状況</h1>
+      {err && <div className="error">{err}</div>}
       {sum && (
         <div className="stats">
           <Stat label="販売済" value={`${totalSold} / ${sum.total_seats}`} />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { seatMap } from '../lib/seats'
+import { seatLabel, seatMap } from '../lib/seats'
 import type { SeatDef } from '../types'
 
 interface Props {
@@ -138,7 +138,7 @@ export function SeatMap({ floor, sold, held, selected, onToggle }: Props) {
               className={`seat cat-${s.c} st-${st}`}
               transform={`translate(${s.x} ${s.y}) rotate(${s.rot})`}
             >
-              <title>{`${s.a} ${s.r}列 ${s.n}番`}</title>
+              <title>{seatLabel(s)}</title>
               <rect x={-3.3} y={-3.3} width={6.6} height={6.6} rx={1.3} />
               <text y={1.3}>{s.c === 'W' ? '♿' : s.n}</text>
             </g>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, ApiError } from '../api'
 import { SeatMap } from '../components/SeatMap'
@@ -37,14 +37,9 @@ export function EventPage() {
 
   const toggle = (s: SeatDef) => {
     setMsg(null)
-    setSelected((sel) => {
-      if (sel.includes(s.id)) return sel.filter((x) => x !== s.id)
-      if (ev && sel.length >= ev.max_per_order) {
-        setMsg(`1回のお申し込みは${ev.max_per_order}枚までです`)
-        return sel
-      }
-      return [...sel, s.id]
-    })
+    if (selected.includes(s.id)) return setSelected(selected.filter((x) => x !== s.id))
+    if (ev && selected.length >= ev.max_per_order) return setMsg(`1回のお申し込みは${ev.max_per_order}枚までです`)
+    setSelected([...selected, s.id])
   }
 
   if (!ev) return <div className="loading">読み込み中…</div>
@@ -62,7 +57,7 @@ export function EventPage() {
           <dd>{ev.venue}</dd>
           <dt>料金</dt>
           <dd>
-            S席 {yen(ev.prices.S)} ／ A席・車椅子席 {yen(ev.prices.A)}
+            S席 {yen(ev.prices.S)} ／ A席 {yen(ev.prices.A)} ／ 車椅子席 {yen(ev.prices.W)}
             <span className="note">（クーポンコードで1枚あたり{yen(ev.coupon_discount)}引き）</span>
           </dd>
         </dl>
@@ -117,10 +112,20 @@ function PurchasePanel({ ev, selected, onRemove, onConflict }: { ev: EventInfo; 
   const couponCount = couponState === 'ok' ? selected.length : 0
   const { lines, total } = calcTotal(ev, selected, couponCount)
 
+  const latestCoupon = useRef(coupon)
+  latestCoupon.current = coupon
   const checkCoupon = async () => {
-    if (!coupon.trim()) return setCouponState('none')
+    const code = coupon.trim().toUpperCase()
+    if (!code) return setCouponState('none')
     setCouponState('checking')
-    setCouponState((await api.validateCoupon(coupon)) ? 'ok' : 'ng')
+    let valid = false
+    try {
+      valid = await api.validateCoupon(code)
+    } catch {
+      /* 通信エラーは無効扱い（再入力で再確認） */
+    }
+    // 確認中にコードが書き換えられていたら結果を捨てる
+    if (latestCoupon.current.trim().toUpperCase() === code) setCouponState(valid ? 'ok' : 'ng')
   }
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -131,9 +136,14 @@ function PurchasePanel({ ev, selected, onRemove, onConflict }: { ev: EventInfo; 
     setBusy(true)
     setErr(null)
     try {
-      const res = await api.checkout({ seat_ids: selected, name: name.trim(), email, coupon_code: couponState === 'ok' ? coupon.trim() : undefined })
-      if (res.checkout_url) window.location.href = res.checkout_url
-      else nav(`/purchase/success?order_id=${res.order_id}`)
+      const res = await api.checkout({ seat_ids: selected, name: name.trim(), email, coupon_code: couponState === 'ok' ? coupon.trim().toUpperCase() : undefined })
+      if (res.checkout_url) {
+        // Stripe 以外への遷移は拒否（オープンリダイレクト対策）
+        if (!res.checkout_url.startsWith('https://checkout.stripe.com/')) throw new Error('invalid checkout url')
+        window.location.href = res.checkout_url
+      } else {
+        nav(`/purchase/success?order_id=${encodeURIComponent(res.order_id ?? '')}&key=${encodeURIComponent(res.order_key ?? '')}`)
+      }
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : '通信に失敗しました。時間をおいてお試しください。')
       if (e instanceof ApiError && e.code === 'seat_taken') onConflict()

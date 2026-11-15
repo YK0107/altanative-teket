@@ -62,6 +62,7 @@ export interface CheckoutResponse {
   // 有料: Stripe Checkout へ遷移 / 0円: そのまま完了画面へ
   checkout_url?: string
   order_id?: string
+  order_key?: string // 0円注文の照会用秘密値（order_id だけでは照会不可）
 }
 
 export interface TicketInfo {

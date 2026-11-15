@@ -21,7 +21,7 @@ export interface Api {
   checkout(req: CheckoutRequest): Promise<CheckoutResponse>
   cancelCheckout(sessionId: string): Promise<void>
   getOrderBySession(sessionId: string): Promise<OrderInfo>
-  getOrder(orderId: string): Promise<OrderInfo>
+  getOrder(orderId: string, orderKey: string): Promise<OrderInfo>
   getTicket(token: string): Promise<TicketInfo | null>
   // スタッフ（受付URLのキー）
   staffCheckin(key: string, token: string): Promise<CheckinResult>

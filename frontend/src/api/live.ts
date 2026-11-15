@@ -35,7 +35,8 @@ export const liveApi: Api = {
   checkout: (body) => req('POST', '/api/checkout', body),
   cancelCheckout: (sessionId) => req('POST', '/api/checkout/cancel', { session_id: sessionId }),
   getOrderBySession: (sessionId) => req('GET', `/api/orders/by-session/${encodeURIComponent(sessionId)}`),
-  getOrder: (orderId) => req('GET', `/api/orders/${encodeURIComponent(orderId)}`),
+  getOrder: (orderId, orderKey) =>
+    req('GET', `/api/orders/${encodeURIComponent(orderId)}?key=${encodeURIComponent(orderKey)}`),
   getTicket: async (token) => {
     try {
       return await req('GET', `/api/tickets/${encodeURIComponent(token)}`)

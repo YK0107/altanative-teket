@@ -21,7 +21,7 @@ const COUPONS = new Set(['SAMPLE500', 'FRIEND'])
 const STAFF_KEY = 'demo'
 
 interface State {
-  orders: (AdminOrder & { tokens: string[] })[]
+  orders: (AdminOrder & { tokens: string[]; order_key: string })[]
   tickets: Record<string, TicketInfo & { order_id: string }>
 }
 
@@ -59,9 +59,9 @@ function soldIds(st: State) {
 function createOrder(st: State, seatIds: string[], name: string, email: string, coupon: string | null, channel: 'online' | 'boxoffice', couponCount: number) {
   const sold = soldIds(st)
   for (const id of seatIds) {
-    if (sold.has(id) || BASE_HELD.includes(id)) throw new ApiError(409, 'seat_taken', `${seatLabelById(id)} は他の方が購入手続き中です`)
+    if (sold.has(id) || BASE_HELD.includes(id)) throw new ApiError(409, 'seat_taken', `${seatLabelById(id)} は${BASE_HELD.includes(id) ? '他の方が購入手続き中' : '販売済み'}です`)
   }
-  const order_id = 'ord_' + rid(10)
+  const order_id = 'ord_' + rid(12)
   const { total } = calcTotal(EVENT, seatIds, couponCount)
   const tokens: string[] = []
   for (const id of seatIds) {
@@ -92,6 +92,7 @@ function createOrder(st: State, seatIds: string[], name: string, email: string, 
     status: 'PAID' as const,
     checked_in: channel === 'boxoffice' ? seatIds.length : 0,
     tokens,
+    order_key: rid(32),
   }
   st.orders.unshift(order)
   save(st)
@@ -124,18 +125,18 @@ export const mockApi: Api = {
     const st = load()
     // モックでは Stripe を経由せず即決済完了扱い
     const o = createOrder(st, req.seat_ids, req.name, req.email, coupon, 'online', coupon ? req.seat_ids.length : 0)
-    return { order_id: o.order_id }
+    return { order_id: o.order_id, order_key: o.order_key }
   },
   async cancelCheckout() {
     await wait()
   },
-  async getOrderBySession(sessionId) {
-    return this.getOrder(sessionId)
+  async getOrderBySession() {
+    throw new ApiError(404, 'not_found', 'モックでは Stripe セッションはありません')
   },
-  async getOrder(orderId) {
+  async getOrder(orderId, orderKey) {
     await wait()
     const st = load()
-    const o = st.orders.find((x) => x.order_id === orderId)
+    const o = st.orders.find((x) => x.order_id === orderId && x.order_key === orderKey)
     if (!o) throw new ApiError(404, 'not_found', '注文が見つかりません')
     return toOrderInfo(st, o)
   },
@@ -176,7 +177,9 @@ export const mockApi: Api = {
     if (key !== STAFF_KEY) throw new ApiError(401, 'unauthorized', '受付URLが無効です')
     const s = q.trim().toLowerCase()
     if (!s) return []
-    return load().orders.filter((o) => o.name.toLowerCase().includes(s) || o.email.toLowerCase().includes(s) || o.order_id.includes(s))
+    return load()
+      .orders.filter((o) => o.name.toLowerCase().includes(s) || o.email.toLowerCase().includes(s) || o.order_id.includes(s))
+      .map(({ order_key: _k, tokens: _t, ...o }) => o)
   },
   async staffCheckinOrder(key, orderId) {
     await wait()
@@ -219,7 +222,7 @@ export const mockApi: Api = {
   },
   async adminOrders() {
     await wait()
-    return load().orders
+    return load().orders.map(({ order_key: _k, tokens: _t, ...o }) => o)
   },
   async adminResendEmail() {
     await wait()
@@ -229,7 +232,9 @@ export const mockApi: Api = {
     for (const o of load().orders) {
       rows.push([o.order_id, o.created_at, o.channel, o.name, o.email, o.seats.map(seatLabelById).join(' / '), String(o.amount), o.coupon_code ?? '', String(o.checked_in)])
     }
-    const csv = '﻿' + rows.map((r) => r.map((c) => `"${c.replaceAll('"', '""')}"`).join(',')).join('\r\n')
+    // CSVインジェクション対策: 数式扱いされる先頭文字をエスケープ
+    const cell = (c: string) => `"${(/^[=+\-@\t\r]/.test(c) ? "'" + c : c).replaceAll('"', '""')}"`
+    const csv = '\ufeff' + rows.map((r) => r.map(cell).join(',')).join('\r\n')
     return URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
   },
 }

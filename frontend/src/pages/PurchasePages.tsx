@@ -7,26 +7,36 @@ import type { OrderInfo, TicketInfo } from '../types'
 export function PurchaseSuccess() {
   const [q] = useSearchParams()
   const sessionId = q.get('session_id')
-  const orderId = q.get('order_id')
+  const orderId = q.get('order_id') ?? ''
+  const orderKey = q.get('key') ?? ''
   const [order, setOrder] = useState<OrderInfo | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
   useEffect(() => {
     let tries = 0
-    let timer: ReturnType<typeof setTimeout>
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const MAX_TRIES = 40 // 約60秒
     const load = async () => {
+      let o: OrderInfo | null = null
       try {
-        const o = sessionId ? await api.getOrderBySession(sessionId) : await api.getOrder(orderId ?? '')
-        setOrder(o)
-        // Webhook 到着待ち（PENDING の間はポーリング）
-        if (o.status === 'PENDING' && tries++ < 20) timer = setTimeout(load, 1500)
+        o = sessionId ? await api.getOrderBySession(sessionId) : await api.getOrder(orderId, orderKey)
       } catch {
-        setErr('注文情報を取得できませんでした。メールをご確認ください。')
+        /* 一時的な通信エラーはリトライ */
       }
+      if (cancelled) return
+      if (o) setOrder(o)
+      // Webhook 到着待ち（PENDING の間 or エラー時はポーリング）
+      if ((!o || o.status === 'PENDING') && ++tries < MAX_TRIES) timer = setTimeout(load, 1500)
+      else if (!o || o.status === 'PENDING')
+        setErr('決済の確認に時間がかかっています。数分後にメールをご確認いただくか、このページを再読み込みしてください。')
     }
     load()
-    return () => clearTimeout(timer)
-  }, [sessionId, orderId])
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [sessionId, orderId, orderKey])
 
   return (
     <div className="page">
@@ -34,7 +44,7 @@ export function PurchaseSuccess() {
         <h1>お申し込みありがとうございました</h1>
         {err && <p className="error">{err}</p>}
         {!order && !err && <p>確認中…</p>}
-        {order?.status === 'PENDING' && <p>決済を確認しています…</p>}
+        {order?.status === 'PENDING' && !err && <p>決済を確認しています…</p>}
         {order?.status === 'PAID' && (
           <p>
             チケットを <b>{order.email}</b> にお送りしました。
