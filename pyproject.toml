@@ -1,0 +1,30 @@
+[project]
+name = "teket-alt"
+version = "0.1.0"
+description = "1団体専用チケット販売システム（backend / tools）"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = ["ruff", "ty", "pytest"]
+tools = ["pdfplumber"]
+
+[tool.uv]
+default-groups = ["dev", "tools"]
+package = false
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+src = ["backend", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"] # 全角文字を含む文字列・コメントを許可
+
+[tool.ty.src]
+include = ["backend", "tools"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+pythonpath = ["backend"]
