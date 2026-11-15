@@ -240,7 +240,7 @@ function BoxOfficeTab({ staffKey }: { staffKey: string }) {
         </div>
         <label className="row">
           クーポン提示枚数
-          <input type="number" min={0} max={sel.length} value={coupons} onChange={(e) => setCoupons(Number(e.target.value))} style={{ width: '5em' }} />
+          <input type="number" min={0} max={sel.length} value={coupons} onChange={(e) => setCoupons(Math.max(0, Math.floor(Number(e.target.value) || 0)))} style={{ width: '5em' }} />
         </label>
         <div className="sum">
           お預かり金額 <b>{yen(total)}</b>（現金）
