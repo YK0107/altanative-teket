@@ -91,7 +91,11 @@ class SesMailer:
 
     def send(self, mail: TicketMail) -> None:
         raw = build_message(mail, self.mail_from).as_bytes()
-        boto3.client("sesv2").send_email(Content={"Raw": {"Data": raw}})
+        boto3.client("sesv2").send_email(
+            FromEmailAddress=self.mail_from,
+            Destination={"ToAddresses": [mail.to]},
+            Content={"Raw": {"Data": raw}},
+        )
 
 
 @lru_cache

@@ -194,3 +194,60 @@ def test_expired_webhook_releases(svc):
     _webhook(svc, "checkout.session.expired", sid)
     assert _order(svc, sid)["status"] == "EXPIRED"
     assert svc.seat_status()["held"] == []
+
+
+def _flaky_transact(svc: Service, reasons_seq: list[list[str]]):
+    from app.db import TransactionCanceled
+
+    real = svc.db.transact
+
+    def transact(items):
+        if reasons_seq:
+            raise TransactionCanceled(reasons_seq.pop(0))
+        return real(items)
+
+    svc.db.transact = transact
+
+
+def test_checkin_retries_on_transaction_conflict(svc):
+    sid = _pay(svc)
+    svc.payments.pay(sid)
+    _webhook(svc, "checkout.session.completed", sid)
+    token = _order(svc, sid)["tokens"][0]
+    _flaky_transact(svc, [["None", "TransactionConflict"], ["TransactionConflict", "None"]])
+    assert svc.checkin(token)["result"] == "ok"
+    assert _order(svc, sid)["checked_in"] == 1
+
+
+def test_throttled_checkout_is_not_seat_taken(svc):
+    _flaky_transact(svc, [["ThrottlingError", "None"]])
+    with pytest.raises(ApiError) as e:
+        svc.checkout(["1-A-13"], None, "山田", "a@example.com")
+    assert e.value.status == 503
+
+
+def test_email_gives_up_after_max_attempts(svc):
+    from app.service import MAX_EMAIL_ATTEMPTS
+
+    svc.mailer.fail = True
+    sid = _pay(svc)
+    svc.payments.pay(sid)
+    _webhook(svc, "checkout.session.completed", sid)
+    for _ in range(MAX_EMAIL_ATTEMPTS):
+        svc.clock.advance(5)
+        svc.sweep()
+    o = _order(svc, sid)
+    assert o["email_attempts"] == MAX_EMAIL_ATTEMPTS and "gsi2pk" not in o and o["email_sent"] is False
+
+
+def test_seed_event_normalizes_timezone(env, tmp_path):
+    import json
+
+    from app import cli
+
+    p = tmp_path / "e.json"
+    data = json.loads((tmp_path / "event.json").read_text())
+    data["sales_start"] = "2026-12-01T10:00:00+09:00"
+    p.write_text(json.dumps(data))
+    cli.seed_event(env, "evt_tz", p)
+    assert env.get({"pk": "EVENT#evt_tz", "sk": "META"})["sales_start"] == "2026-12-01T01:00:00Z"

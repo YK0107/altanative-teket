@@ -28,6 +28,7 @@ from app.seats import all_seats, seat_label
 log = logging.getLogger(__name__)
 
 CATEGORY_NAME: dict[str, str] = {"S": "S席", "A": "A席", "W": "車椅子席"}
+MAX_EMAIL_ATTEMPTS = 6  # 定期回収(5分ごと)で約30分再送する
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
 
@@ -167,6 +168,9 @@ class Service:
 
     @staticmethod
     def _seat_conflict(e: TransactionCanceled, seat_ids: list[str]) -> ApiError:
+        if not e.only_contention():
+            log.warning("seat transaction failed reasons=%s", e.reasons)
+            return ApiError(503, "busy", "混み合っています。少し待ってからもう一度お試しください")
         for i in e.failed():
             if i < len(seat_ids):
                 return ApiError(409, "seat_taken", f"{seat_label(seat_ids[i])} は販売済みか、他の方が購入手続き中です")
@@ -558,12 +562,23 @@ class Service:
         try:
             self.mailer.send(mail)
         except Exception:
-            log.exception("send email failed order=%s", order_id)
+            attempts = order.get("email_attempts", 0) + 1
+            give_up = attempts >= MAX_EMAIL_ATTEMPTS
+            # 送れなかったメールは定期回収で再送。上限に達したら再送対象から外し、手動対応（管理画面から再送）に回す
+            self.db.table.update_item(
+                Key=db.order_key(order_id),
+                UpdateExpression="SET email_attempts = :n" + (" REMOVE gsi2pk, gsi2sk" if give_up else ""),
+                ExpressionAttributeValues={":n": attempts},
+            )
+            if give_up:
+                log.error("EMAIL_GAVE_UP order=%s attempts=%s", order_id, attempts, exc_info=True)
+            else:
+                log.warning("send email failed order=%s attempts=%s", order_id, attempts, exc_info=True)
             return False
         self.db.table.update_item(
             Key=db.order_key(order_id),
-            UpdateExpression="SET email_sent = :t, email_sent_at = :at REMOVE gsi2pk, gsi2sk",
-            ExpressionAttributeValues={":t": True, ":at": iso(self.clock())},
+            UpdateExpression="SET email_sent = :t, email_sent_at = :at, email_attempts = :z REMOVE gsi2pk, gsi2sk",
+            ExpressionAttributeValues={":t": True, ":at": iso(self.clock()), ":z": 0},
         )
         return True
 
@@ -574,28 +589,36 @@ class Service:
         t = self.db.get(db.ticket_key(token)) if 0 < len(token) <= 64 else None
         if not t:
             return {"result": "invalid"}
-        now = iso(self.clock())
-        try:
-            self.db.transact(
-                [
-                    {
-                        "Update": {
-                            "Key": db.ticket_key(token),
-                            "UpdateExpression": "SET used_at = :t",
-                            "ConditionExpression": "attribute_exists(pk) AND attribute_not_exists(used_at)",
-                            "ExpressionAttributeValues": {":t": now},
-                        }
-                    },
-                    self._add_checked_in(t["order_id"], 1),
-                ]
-            )
-        except TransactionCanceled as e:
-            if 0 not in e.failed():
-                return {"result": "invalid"}  # 注文が PAID でない（返金済みなど）
-            t = self.db.get(db.ticket_key(token)) or t
-            return {"result": "used", "ticket": self._ticket_info(t, ev)}
-        t["used_at"] = now
-        return {"result": "ok", "ticket": self._ticket_info(t, ev)}
+        for attempt in range(4):
+            now = iso(self.clock())
+            try:
+                self.db.transact(
+                    [
+                        {
+                            "Update": {
+                                "Key": db.ticket_key(token),
+                                "UpdateExpression": "SET used_at = :t",
+                                "ConditionExpression": "attribute_exists(pk) AND attribute_not_exists(used_at)",
+                                "ExpressionAttributeValues": {":t": now},
+                            }
+                        },
+                        self._add_checked_in(t["order_id"], 1),
+                    ]
+                )
+            except TransactionCanceled as e:
+                cond = e.condition_failed()
+                if 0 in cond:
+                    t = self.db.get(db.ticket_key(token)) or t
+                    return {"result": "used", "ticket": self._ticket_info(t, ev)}
+                if 1 in cond:
+                    return {"result": "invalid"}  # 注文が PAID でない（返金済みなど）
+                # 同じ注文の別チケットを同時に受付した（TransactionConflict）など。少し待って再試行
+                log.info("checkin retry token=%s reasons=%s", token[:6], e.reasons)
+                time.sleep(0.05 * (attempt + 1))
+                continue
+            t["used_at"] = now
+            return {"result": "ok", "ticket": self._ticket_info(t, ev)}
+        raise ApiError(503, "busy", "混み合っています。もう一度読み取ってください")
 
     @staticmethod
     def _add_checked_in(order_id: str, n: int) -> dict:
@@ -634,6 +657,7 @@ class Service:
                 self.db.transact(items)
                 return
             except TransactionCanceled:
+                time.sleep(0.05)
                 continue  # 同時にQR受付された。読み直して再試行
         raise ApiError(409, "conflict", "処理が競合しました。もう一度お試しください")
 
@@ -715,7 +739,8 @@ class Service:
         }
 
     def admin_orders(self) -> list[dict]:
-        return [self._admin_order(o) for o in self._all_orders() if o["status"] != "EXPIRED"]
+        # needs_refund: 解放後に決済が完了した注文（要返金）も一覧に出す
+        return [self._admin_order(o) for o in self._all_orders() if o["status"] != "EXPIRED" or o.get("needs_refund")]
 
     def summary(self) -> dict:
         seats = all_seats()

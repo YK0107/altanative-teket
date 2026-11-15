@@ -77,6 +77,13 @@ class TransactionCanceled(Exception):
     def failed(self) -> list[int]:
         return [i for i, r in enumerate(self.reasons) if r not in ("None", "")]
 
+    def condition_failed(self) -> list[int]:
+        return [i for i, r in enumerate(self.reasons) if r == "ConditionalCheckFailed"]
+
+    def only_contention(self) -> bool:
+        """条件不一致か、同じ項目への同時トランザクションによる失敗だけか（スロットリング等を除く）。"""
+        return all(r in ("None", "", "ConditionalCheckFailed", "TransactionConflict") for r in self.reasons)
+
 
 class Db:
     def __init__(self, table_name: str, resource: Any = None):

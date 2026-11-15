@@ -16,6 +16,8 @@ infra/
    ```
 2. **GitHub の設定**
    - Environment `production` を作成（デプロイロールはこの environment からのみ引き受け可能）
+     - **Deployment branches and tags を `main` のみに制限する**（必須。しないと他ブランチから本番ロールを使える）
+     - 必要なら Required reviewers も設定
    - リポジトリ変数（Settings → Variables）
      | 変数 | 値 |
      |---|---|
@@ -49,9 +51,11 @@ infra/
 ## 運用
 
 - **受付URL**: `https://<site>/staff#key=<staff_key>`。ローテーションは SSM の `staff_key` を `旧キー,新キー` にして新URLを配布 → 全員が切り替えたら `新キー` だけにする（反映は約1分）
+- **日時**はタイムゾーン付きで書く（`+09:00` でも可。保存時に UTC に正規化）
 - **価格・公演情報の変更**: `backend/event.json` を編集して `seed-event` を再実行（約30秒で反映。確定済みの注文の金額は変わらない）
 - **定期回収**（5分ごと）: 期限切れの決済待ち注文を Stripe に確認して確定または解放し、送信に失敗したメールを再送する
-- **返金**: Stripe ダッシュボードから手動。CloudWatch アラームの `PAID_AFTER_RELEASE`（座席解放後に決済が完了した注文。通常は起きない）が出たら、その注文を返金する
+- **返金**: Stripe ダッシュボードから手動。CloudWatch アラームの `PAID_AFTER_RELEASE`（座席解放後に決済が完了した注文。通常は起きない）が出たら、その注文を返金する（管理画面の一覧にも EXPIRED のまま表示される）
+- **メール送信失敗**: 定期回収で約30分再送し、それでも失敗したら `EMAIL_GAVE_UP` のアラームを出して再送をやめる。宛先を確認して管理画面から再送する
 - **ログ**: CloudWatch Logs `/aws/lambda/teket-alt-api`（90日保持）
 - DynamoDB はポイントインタイムリカバリと削除保護を有効にしている
 

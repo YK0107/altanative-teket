@@ -63,7 +63,8 @@ resource "aws_iam_openid_connect_provider" "github" {
   client_id_list = ["sts.amazonaws.com"]
 }
 
-# main ブランチの deploy ワークフロー（environment: production）からのみ引き受け可能
+# environment: production のジョブからのみ引き受け可能。
+# GitHub 側で production の Deployment branches を main のみに制限すること（制限しないと他ブランチから使える）
 resource "aws_iam_role" "deploy" {
   name = "${var.project}-github-deploy"
   assume_role_policy = jsonencode({

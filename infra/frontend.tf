@@ -137,6 +137,15 @@ resource "aws_cloudfront_distribution" "site" {
     response_headers_policy_id = data.aws_cloudfront_response_headers_policy.security.id
   }
 
+  # 5xx をエッジにキャッシュしない（既定は10秒キャッシュされる）
+  dynamic "custom_error_response" {
+    for_each = [500, 502, 503, 504]
+    content {
+      error_code            = custom_error_response.value
+      error_caching_min_ttl = 0
+    }
+  }
+
   restrictions {
     geo_restriction {
       restriction_type = "none"

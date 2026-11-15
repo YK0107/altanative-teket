@@ -12,6 +12,7 @@ import argparse
 import getpass
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from botocore.exceptions import ClientError
@@ -43,6 +44,12 @@ def seed_event(d: db.Db, event_id: str, path: Path) -> None:
         sys.exit(f"missing fields: {missing}")
     if set(data["prices"]) != {"S", "A", "W"} or not all(isinstance(v, int) and v > 0 for v in data["prices"].values()):
         sys.exit("prices must be positive integers for S, A, W")
+    # 日時は UTC の "Z" 形式に正規化して保存する（販売期間は文字列比較で判定するため）
+    for k in ("starts_at", "doors_open_at", "sales_start", "sales_end"):
+        dt = datetime.fromisoformat(data[k].replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            sys.exit(f"{k} にタイムゾーンを付けてください（例: 2027-03-20T14:00:00+09:00）")
+        data[k] = db.iso(dt)
     d.table.put_item(Item={"pk": db.event_pk(event_id), "sk": "META", **{k: data[k] for k in EVENT_FIELDS}})
     print(f"event {event_id} saved")
 

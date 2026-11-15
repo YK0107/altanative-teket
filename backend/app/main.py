@@ -42,6 +42,17 @@ async def _validation_error(_: Request, e: RequestValidationError) -> JSONRespon
     return JSONResponse({"code": "bad_request", "message": "入力内容が不正です"}, status_code=400)
 
 
+@app.exception_handler(Exception)
+async def _unexpected(_: Request, e: Exception) -> JSONResponse:
+    # 想定外の 500 も no-store にして CloudFront にキャッシュさせない
+    log.exception("unhandled error")
+    return JSONResponse(
+        {"code": "internal", "message": "エラーが発生しました。時間をおいてお試しください"},
+        status_code=500,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.middleware("http")
 async def _no_store(request: Request, call_next: Any) -> Response:
     res = await call_next(request)
