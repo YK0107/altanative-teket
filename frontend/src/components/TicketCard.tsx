@@ -16,7 +16,7 @@ export function TicketCard({ t, compact }: { t: TicketInfo; compact?: boolean })
     <div className={`ticket ${t.used_at ? 'used' : ''} ${compact ? 'compact' : ''}`}>
       <div className="ticket-main">
         <div className="ticket-event">
-          {t.event_name.split(/\s+/).map((p, i) => (
+          {t.event_name.trim().split(/\s+/).map((p, i) => (
             <span key={i}>{p}</span>
           ))}
         </div>

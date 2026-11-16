@@ -44,7 +44,7 @@ export function EventPage() {
 
   if (!ev) return <div className="loading">読み込み中…</div>
   // 「団体名 公演名」を空白で分け、団体名を小見出しにする（途中で折り返さない）
-  const nameParts = ev.name.split(/\s+/)
+  const nameParts = ev.name.trim().split(/\s+/)
 
   return (
     <div className="page event-page">
