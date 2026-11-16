@@ -43,29 +43,40 @@ export function EventPage() {
   }
 
   if (!ev) return <div className="loading">読み込み中…</div>
+  // 「団体名 公演名」を空白で分け、団体名を小見出しにする（途中で折り返さない）
+  const nameParts = ev.name.split(/\s+/)
 
   return (
     <div className="page event-page">
-      <section className="event-head card">
-        <h1>{ev.name}</h1>
+      <section className="event-head">
+        <h1>
+          {nameParts.map((p, i) => (
+            <span key={i} className={i === 0 && nameParts.length > 1 ? 'org' : undefined}>
+              {p}
+            </span>
+          ))}
+        </h1>
         <dl>
           <dt>日時</dt>
           <dd>
-            {fmtDate(ev.starts_at)}
-            <br />
-            {fmtTime(ev.doors_open_at)}開場 {fmtTime(ev.starts_at)}開演
+            <span>{fmtDate(ev.starts_at)}</span>
+            <span>
+              {fmtTime(ev.doors_open_at)} 開場 ／ {fmtTime(ev.starts_at)} 開演
+            </span>
           </dd>
           <dt>会場</dt>
           <dd>{ev.venue}</dd>
           <dt>料金</dt>
           <dd>
-            S席 {yen(ev.prices.S)} ／ A席 {yen(ev.prices.A)} ／ 車椅子席 {yen(ev.prices.W)}
+            <span>S席 {yen(ev.prices.S)}</span>
+            <span>A席 {yen(ev.prices.A)}</span>
+            <span>車椅子席 {yen(ev.prices.W)}</span>
           </dd>
         </dl>
         <p className="note">お支払い後のキャンセル・返金はできません（公演中止時を除く）。</p>
       </section>
 
-      <section className="card seat-section">
+      <section className="seat-section">
         <div className="tabs" role="tablist">
           {seatMap.floors.map((f) => (
             <button key={f.f} role="tab" aria-selected={floor === f.f} className={floor === f.f ? 'active' : ''} onClick={() => setFloor(f.f)}>
@@ -215,7 +226,8 @@ function PurchasePanel({ ev, selected, onRemove, onConflict }: { ev: EventInfo; 
           </label>
           {err && <div className="error">{err}</div>}
           <div className="sum">
-            合計 <b>{yen(total)}</b>
+            <span>合計（税込）</span>
+            <b>{yen(total)}</b>
           </div>
           <button className="primary" disabled={!canSubmit}>
             {busy ? '処理中…' : total === 0 ? '申し込む（お支払いなし）' : 'お支払いへ進む（カード決済）'}

@@ -111,6 +111,7 @@ export function SeatMap({ floor, sold, held, selected, onToggle }: Props) {
       <svg
         ref={svgRef}
         viewBox={vb.join(' ')}
+        style={{ aspectRatio: `${fdef.viewBox[2]} / ${fdef.viewBox[3]}` }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

@@ -5,11 +5,11 @@ const SELLER = import.meta.env.VITE_SELLER_NAME ?? '（団体名）'
 
 function Legal({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="page legal">
-      <section className="card">
+    <div className="page narrow legal">
+      <section>
         <h1>{title}</h1>
         {children}
-        <p>
+        <p className="back">
           <Link to="/">トップへ戻る</Link>
         </p>
       </section>
