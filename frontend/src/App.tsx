@@ -26,7 +26,7 @@ export default function App() {
           <Route path="/legal/tokushoho" element={<Tokushoho />} />
           <Route path="/legal/terms" element={<Terms />} />
           <Route path="/legal/privacy" element={<Privacy />} />
-          <Route path="*" element={<div className="page card center">ページが見つかりません</div>} />
+          <Route path="*" element={<div className="loading">ページが見つかりません</div>} />
         </Routes>
       </main>
     </BrowserRouter>

@@ -15,7 +15,11 @@ export function TicketCard({ t, compact }: { t: TicketInfo; compact?: boolean })
   return (
     <div className={`ticket ${t.used_at ? 'used' : ''} ${compact ? 'compact' : ''}`}>
       <div className="ticket-main">
-        <div className="ticket-event">{t.event_name}</div>
+        <div className="ticket-event">
+          {t.event_name.trim().split(/\s+/).map((p, i) => (
+            <span key={i}>{p}</span>
+          ))}
+        </div>
         <div className="ticket-date">
           {fmtDateTime(t.starts_at)} 開演
           <br />

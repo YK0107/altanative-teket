@@ -39,8 +39,8 @@ export function PurchaseSuccess() {
   }, [sessionId, orderId, orderKey])
 
   return (
-    <div className="page">
-      <section className="card center">
+    <div className="page narrow">
+      <section className="message">
         <h1>お申し込みありがとうございました</h1>
         {err && <p className="error">{err}</p>}
         {!order && !err && <p>確認中…</p>}
@@ -55,15 +55,19 @@ export function PurchaseSuccess() {
           </p>
         )}
       </section>
-      {order?.tickets.map((t) => (
-        <div key={t.token} className="ticket-wrap">
-          <TicketCard t={t} compact />
-          <a href={ticketUrl(t.token)} className="ticket-link">
-            このチケットを開く →
-          </a>
+      {order && order.tickets.length > 0 && (
+        <div className="ticket-list">
+          {order.tickets.map((t) => (
+            <div key={t.token} className="ticket-wrap">
+              <TicketCard t={t} compact />
+              <a href={ticketUrl(t.token)} className="ticket-link">
+                このチケットを開く
+              </a>
+            </div>
+          ))}
         </div>
-      ))}
-      <p className="center">
+      )}
+      <p className="back">
         <Link to="/">トップへ戻る</Link>
       </p>
     </div>
@@ -78,8 +82,8 @@ export function PurchaseCancel() {
     if (sessionId) api.cancelCheckout(sessionId).catch(() => {})
   }, [sessionId])
   return (
-    <div className="page">
-      <section className="card center">
+    <div className="page narrow">
+      <section className="message">
         <h1>お手続きを中断しました</h1>
         <p>決済は行われていません。選択した座席は解放されました。</p>
         <Link className="button primary" to="/">
@@ -99,8 +103,8 @@ export function TicketPage() {
   if (t === undefined) return <div className="loading">読み込み中…</div>
   if (t === null)
     return (
-      <div className="page">
-        <section className="card center">
+      <div className="page narrow">
+        <section className="message">
           <h1>チケットが見つかりません</h1>
           <p>URLをご確認ください。</p>
         </section>
@@ -109,7 +113,7 @@ export function TicketPage() {
   return (
     <div className="page ticket-page">
       <TicketCard t={t} />
-      <p className="note center">入場時にこの画面のQRコードを受付スタッフにご提示ください。スクリーンショットでも入場できます。</p>
+      <p className="note">入場時にこの画面のQRコードを受付スタッフにご提示ください。スクリーンショットでも入場できます。</p>
     </div>
   )
 }

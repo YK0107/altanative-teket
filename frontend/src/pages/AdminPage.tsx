@@ -16,7 +16,7 @@ function Login({ onLogin }: { onLogin: (jwt: string) => void }) {
   return (
     <div className="page">
       <form
-        className="card narrow"
+        className="login"
         onSubmit={async (e) => {
           e.preventDefault()
           try {
@@ -72,7 +72,7 @@ function Dashboard({ jwt, onExpired }: { jwt: string; onExpired: () => void }) {
           <Stat label="クーポン利用" value={`${sum.coupon_used} 枚`} />
         </div>
       )}
-      <section className="card">
+      <section className="orders">
         <div className="row spread">
           <h2>注文一覧</h2>
           <div className="row">
@@ -151,7 +151,7 @@ function Dashboard({ jwt, onExpired }: { jwt: string; onExpired: () => void }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="stat card">
+    <div className="stat">
       <div className="label">{label}</div>
       <div className="value">{value}</div>
     </div>

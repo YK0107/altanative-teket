@@ -21,7 +21,7 @@ function useStaffKey() {
 export function StaffPage() {
   const key = useStaffKey()
   const [tab, setTab] = useState<'scan' | 'search' | 'box'>('scan')
-  if (!key) return <div className="page card center">受付用URLからアクセスしてください。</div>
+  if (!key) return <div className="loading">受付用URLからアクセスしてください。</div>
   return (
     <div className="page staff-page">
       <div className="tabs staff-tabs">
@@ -84,7 +84,7 @@ function ScanTab({ staffKey }: { staffKey: string }) {
   }, [])
 
   return (
-    <section className="card">
+    <section className="staff-pane">
       <div className="scanner">
         <video ref={videoRef} muted playsInline />
         {camErr && <div className="cam-err">{camErr}</div>}
@@ -136,12 +136,12 @@ function SearchTab({ staffKey }: { staffKey: string }) {
     setRows(await api.staffSearch(staffKey, q))
   }
   return (
-    <section className="card">
+    <section className="staff-pane">
       <form className="row" onSubmit={search}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="氏名・注文番号" />
         <button>検索</button>
       </form>
-      {rows?.length === 0 && <p>該当なし</p>}
+      {rows?.length === 0 && <p className="note">該当なし</p>}
       <ul className="order-list">
         {rows?.map((o) => (
           <li key={o.order_id}>
@@ -225,7 +225,7 @@ function BoxOfficeTab({ staffKey }: { staffKey: string }) {
   }
 
   return (
-    <section className="card">
+    <section className="staff-pane">
       <div className="tabs">
         {seatMap.floors.map((f) => (
           <button key={f.f} className={floor === f.f ? 'active' : ''} onClick={() => setFloor(f.f)}>
@@ -243,7 +243,8 @@ function BoxOfficeTab({ staffKey }: { staffKey: string }) {
           <input type="number" min={0} max={sel.length} value={coupons} onChange={(e) => setCoupons(Math.max(0, Math.floor(Number(e.target.value) || 0)))} style={{ width: '5em' }} />
         </label>
         <div className="sum">
-          お預かり金額 <b>{yen(total)}</b>（現金）
+          <span>お預かり金額（現金）</span>
+          <b>{yen(total)}</b>
         </div>
         {err && <div className="error">{err}</div>}
         <button className="primary" disabled={sel.length === 0 || busy} onClick={sell}>
