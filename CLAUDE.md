@@ -20,6 +20,7 @@ teket代替の1団体専用チケット販売システム（東京芸術劇場�
 ## ルール
 - Python は ruff（lint/format）と ty（型）を通すこと。フロントは oxlint と `tsc -b` を通すこと
 - 画面変更時はモックモードで Playwright のスクショを撮ってユーザーに見せる（GitHub Pagesはユーザーが必要時に作成）
+- 画面変更を含むPRには、そのスクショをPR本文に貼る。画像は `docs/screenshots/<PRの内容>/` にコミットし、コミットSHA固定のURL（`https://github.com/YK0107/altanative-teket/blob/<sha>/docs/screenshots/.../x.png?raw=true`）で参照する
 - 秘密情報（Stripeキー等）はコード・Terraformの値に含めない
 - ブランチ名は `<種別>/<内容>`（例: `feat/backend-terraform`）。種別は `feat`（機能追加）/ `fix`（不具合修正）/ `chore`（設定・依存・CIなど）/ `docs`（文書のみ）/ `refactor`
 
@@ -28,4 +29,4 @@ PRを作成する前に、必ずサブエージェント（Agentツール）に�
 1. 上記の CI と同じチェックをローカルで全て通す
 2. サブエージェントに `git diff main...HEAD` を対象として、正しさ（在庫・決済・冪等性・競合）、セキュリティ（認証・トークン・秘密情報）、料金計算の front/back 一致を重点にレビューさせる
 3. 指摘を修正するか、修正しない理由をPR本文に記載する
-4. その後にPRを作成する
+4. その後にPRを作成する（画面変更があればスクショを本文に貼る）
