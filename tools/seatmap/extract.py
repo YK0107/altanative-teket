@@ -135,8 +135,23 @@ wheel = [(325.7, 400.65), (335.9, 403.45), (W - 335.9, 403.45), (W - 325.7, 400.
 for k, (x, y) in enumerate(wheel, 1):
     seats.append(dict(x=x, y=y, num=k, row="車椅子", area="1", rot=15.0 if x < W / 2 else -15.0, wc=True))
 
-# ---- 階ごとの配置変換(2階バルコニーは紙面上1階の横に描かれているので2階本体の横へ移動) ----
-SHIFT = {"2LB": (-50, 372), "2RB": (50, 372)}
+# ---- 階ごとの配置変換 ----
+# 2階バルコニーは紙面上1階(舞台)の両脇に描かれている。舞台との位置関係は紙面どおりに保ち、
+# 2階本体との間(1階客席ぶん)だけ縦に詰める
+BALCONY_DY = 120
+SHIFT = {"2LB": (0, BALCONY_DY), "2RB": (0, BALCONY_DY)}
+# 舞台の外形(紙面のピンクの台形)。2階の図でバルコニーの間に描く
+stage_shapes = [
+    o
+    for o in pg.curves
+    if o.get("fill") and o.get("non_stroking_color") == (0.0, 0.1, 0.05, 0.0) and o["x1"] - o["x0"] > 150
+]
+assert len(stage_shapes) == 1, len(stage_shapes)
+stage_pts: list[tuple[float, float]] = []
+for px, py in stage_shapes[0]["pts"]:
+    if (px, py) not in stage_pts:
+        stage_pts.append((px, py))
+STAGE = {2: [[round(px, 1), round(py + BALCONY_DY, 1)] for px, py in stage_pts]}
 AREA_NAME = {
     "1": "1階", "1LB": "1階LB", "1RB": "1階RB",
     "2": "2階", "2LB": "2階LB", "2RB": "2階RB",
@@ -181,13 +196,18 @@ for f in (1, 2, 3):
     xs = [s["x"] for s in out_seats if s["f"] == f]
     ys = [s["y"] for s in out_seats if s["f"] == f]
     pad = 18
+    # 舞台の外形を描かない階は、上端に「ステージ方向」の帯を置く余白を足す
+    top = 0 if f in STAGE else 25
     view_box = [
         round(min(xs) - pad),
-        round(min(ys) - pad - 25),
+        round(min(ys) - pad - top),
         round(max(xs) - min(xs) + 2 * pad),
-        round(max(ys) - min(ys) + 2 * pad + 25),
+        round(max(ys) - min(ys) + 2 * pad + top),
     ]
-    floors.append(dict(f=f, name=f"{f}階", viewBox=view_box))
+    floor_def: dict[str, Any] = dict(f=f, name=f"{f}階", viewBox=view_box)
+    if f in STAGE:
+        floor_def["stage"] = STAGE[f]
+    floors.append(floor_def)
 with open(out_path, "w") as fp:
     json.dump(
         dict(venue="東京芸術劇場 コンサートホール", floors=floors, seats=out_seats, labels=out_labels),

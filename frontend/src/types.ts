@@ -16,6 +16,8 @@ export interface FloorDef {
   f: number
   name: string
   viewBox: [number, number, number, number]
+  /** 舞台の外形（多角形の頂点）。あれば図中に描く */
+  stage?: [number, number][]
 }
 
 export interface RowLabel {
