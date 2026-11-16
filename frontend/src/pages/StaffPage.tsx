@@ -138,7 +138,7 @@ function SearchTab({ staffKey }: { staffKey: string }) {
   return (
     <section className="card">
       <form className="row" onSubmit={search}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="氏名・メール・注文番号" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="氏名・注文番号" />
         <button>検索</button>
       </form>
       {rows?.length === 0 && <p>該当なし</p>}
@@ -146,7 +146,7 @@ function SearchTab({ staffKey }: { staffKey: string }) {
         {rows?.map((o) => (
           <li key={o.order_id}>
             <div>
-              <b>{o.name}</b> <small>{o.email}</small>
+              <b>{o.name}</b>
             </div>
             <div className="seats">{o.seats.map(seatLabelById).join('、')}</div>
             <div className="row">

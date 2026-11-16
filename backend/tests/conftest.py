@@ -25,12 +25,18 @@ class FakePayments:
         if self.fail_create:
             raise RuntimeError("stripe down")
         sid = f"cs_{len(self.sessions) + 1}"
-        self.sessions[sid] = {"status": "open", "payment_status": "unpaid", "amount": amount, "order_id": order_id}
+        self.sessions[sid] = {
+            "status": "open",
+            "payment_status": "unpaid",
+            "amount": amount,
+            "order_id": order_id,
+            "email": email,
+        }
         return sid, f"https://checkout.stripe.test/{sid}"
 
     def _state(self, sid: str) -> SessionState:
         s = self.sessions[sid]
-        return SessionState(sid, s["status"], s["payment_status"], s["amount"], s["order_id"])
+        return SessionState(sid, s["status"], s["payment_status"], s["amount"], s["order_id"], s["email"])
 
     def retrieve(self, session_id):
         return self._state(session_id)

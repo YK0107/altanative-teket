@@ -80,7 +80,6 @@ export interface TicketInfo {
 export interface OrderInfo {
   order_id: string
   status: 'PENDING' | 'PAID' | 'EXPIRED' | 'REFUNDED'
-  email: string
   tickets: TicketInfo[]
 }
 
@@ -114,10 +113,10 @@ export interface AdminOrder {
   created_at: string
   channel: 'online' | 'boxoffice'
   name: string
-  email: string
   seats: string[]
   amount: number
   coupon_code: string | null
   status: OrderInfo['status']
   checked_in: number
+  can_resend: boolean // 送信先を取得できる注文か（送信済みの0円注文・当日券は不可）
 }

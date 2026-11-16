@@ -16,6 +16,7 @@ class SessionState:
     payment_status: str  # paid / unpaid / no_payment_required
     amount_total: int | None
     order_id: str | None
+    email: str | None = None  # 購入者のメール。DBには保存せず、送信時に Stripe から取得する
 
 
 class Payments(Protocol):
@@ -41,7 +42,8 @@ class Payments(Protocol):
 
 def _state(s: Any) -> SessionState:
     md = s.metadata or {}
-    return SessionState(s.id, s.status or "", s.payment_status or "", s.amount_total, md.get("order_id"))
+    email = (s.customer_details.email if s.customer_details else None) or s.customer_email
+    return SessionState(s.id, s.status or "", s.payment_status or "", s.amount_total, md.get("order_id"), email)
 
 
 class StripePayments:

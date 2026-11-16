@@ -13,7 +13,7 @@ import re
 import secrets
 import time
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any, Literal
 
@@ -97,6 +97,27 @@ def _jst(iso_str: str) -> str:
     dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00")).astimezone(ZoneInfo("Asia/Tokyo"))
     wd = "月火水木金土日"[dt.weekday()]
     return f"{dt.year}年{dt.month}月{dt.day}日（{wd}）{dt.hour:02d}:{dt.minute:02d}"
+
+
+def purge_emails(d: Db, event_id: str, include_unsent: bool = False) -> int:
+    """注文に残っているメールを削除する。
+
+    通常は送信待ちの0円注文（PAID かつ未送信）だけ残す。include_unsent=True なら全注文から消す（公演後など）。
+    """
+    n = 0
+    orders = d.query_all(
+        IndexName="gsi1",
+        KeyConditionExpression="gsi1pk = :p",
+        ExpressionAttributeValues={":p": db.event_pk(event_id)},
+    )
+    for o in orders:
+        if "email" not in o:
+            continue
+        if not include_unsent and o["status"] == "PAID" and not o.get("email_sent"):
+            continue
+        d.table.update_item(Key=db.order_key(o["order_id"]), UpdateExpression="REMOVE email")
+        n += 1
+    return n
 
 
 @dataclass
@@ -205,7 +226,6 @@ class Service:
             "event_id": self.event_id,
             "channel": "online",
             "name": name,
-            "email": email,
             "seats": ordered,
             "amount": amount,
             "coupon_code": coupon,
@@ -224,6 +244,8 @@ class Service:
                 "status": "PAID",
                 "paid_at": iso(now),
                 "tokens": tokens,
+                # Stripe を通らないため、送信が成功するまでだけメールを保持する（送信成功時に削除）
+                "email": email,
                 "email_sent": False,
                 "gsi2pk": f"EMAIL#{self.event_id}",
                 "gsi2sk": iso(now),
@@ -392,7 +414,7 @@ class Service:
                 return
             log.error("fulfill failed order=%s status=%s reasons=%s", oid, current and current["status"], e.reasons)
             raise
-        self.send_email(oid)
+        self.send_email(oid, session.email)
 
     def reconcile(self, order: dict, force_expire: bool) -> str:
         """Stripe 側の状態に合わせて注文を確定または解放する。戻り値は最終状態。"""
@@ -511,7 +533,6 @@ class Service:
         return {
             "order_id": order["order_id"],
             "status": order["status"],
-            "email": order["email"],
             "tickets": [self._ticket_info(t, ev) for t in self._tickets(order)] if order["status"] == "PAID" else [],
         }
 
@@ -537,14 +558,32 @@ class Service:
 
     # ---------- メール ----------
 
-    def send_email(self, order_id: str) -> bool:
+    def _recipient(self, order: dict, email: str | None) -> str:
+        """送信先。有料注文のメールはDBに保存しないので Stripe のセッションから取得する。"""
+        to = email or order.get("email")
+        if not to and (sid := order.get("stripe_session_id")):
+            to = self.payments.retrieve(sid).email
+        if not to:
+            raise RuntimeError("no recipient")
+        return to
+
+    @staticmethod
+    def _can_email(order: dict | None) -> bool:
+        return bool(
+            order
+            and order["status"] == "PAID"
+            and order.get("channel") == "online"
+            and (order.get("email") or order.get("stripe_session_id"))
+        )
+
+    def send_email(self, order_id: str, email: str | None = None) -> bool:
         order = self.db.get(db.order_key(order_id))
-        if not order or order["status"] != "PAID" or not order.get("email"):
+        if not order or not self._can_email(order):
             return False
         ev = self.event()
         tickets = self._tickets(order)
         mail = TicketMail(
-            to=order["email"],
+            to="",
             holder_name=order["name"],
             event_name=ev.name,
             starts_at_jst=_jst(ev.starts_at),
@@ -560,8 +599,12 @@ class Service:
             ],
         )
         try:
-            self.mailer.send(mail)
-        except Exception:
+            self.mailer.send(replace(mail, to=self._recipient(order, email)))
+        except Exception as e:
+            # 例外メッセージに宛先が含まれることがある(SES など)ため、型とエラーコードだけ記録する
+            reason = type(e).__name__
+            if isinstance(err := getattr(e, "response", None), dict):
+                reason += f"/{err.get('Error', {}).get('Code', '')}"
             attempts = order.get("email_attempts", 0) + 1
             give_up = attempts >= MAX_EMAIL_ATTEMPTS
             # 送れなかったメールは定期回収で再送。上限に達したら再送対象から外し、手動対応（管理画面から再送）に回す
@@ -571,13 +614,15 @@ class Service:
                 ExpressionAttributeValues={":n": attempts},
             )
             if give_up:
-                log.error("EMAIL_GAVE_UP order=%s attempts=%s", order_id, attempts, exc_info=True)
+                log.error("EMAIL_GAVE_UP order=%s attempts=%s reason=%s", order_id, attempts, reason)
             else:
-                log.warning("send email failed order=%s attempts=%s", order_id, attempts, exc_info=True)
+                log.warning("send email failed order=%s attempts=%s reason=%s", order_id, attempts, reason)
             return False
         self.db.table.update_item(
             Key=db.order_key(order_id),
-            UpdateExpression="SET email_sent = :t, email_sent_at = :at, email_attempts = :z REMOVE gsi2pk, gsi2sk",
+            # 0円注文で一時保存していたメールも送信成功時に消す
+            UpdateExpression="SET email_sent = :t, email_sent_at = :at, email_attempts = :z "
+            "REMOVE gsi2pk, gsi2sk, email",
             ExpressionAttributeValues={":t": True, ":at": iso(self.clock()), ":z": 0},
         )
         return True
@@ -666,10 +711,7 @@ class Service:
         if not s:
             return []
         hits = [
-            o
-            for o in self._all_orders()
-            if o["status"] == "PAID"
-            and (s in o["name"].lower() or s in o.get("email", "").lower() or s in o["order_id"])
+            o for o in self._all_orders() if o["status"] == "PAID" and (s in o["name"].lower() or s in o["order_id"])
         ]
         return [self._admin_order(o) for o in hits[:50]]
 
@@ -689,7 +731,6 @@ class Service:
             "event_id": self.event_id,
             "channel": "boxoffice",
             "name": "当日券",
-            "email": "",
             "seats": ordered,
             "amount": amount,
             "coupon_code": None,
@@ -722,6 +763,9 @@ class Service:
             ScanIndexForward=False,
         )
 
+    def purge_emails(self, include_unsent: bool = False) -> int:
+        return purge_emails(self.db, self.event_id, include_unsent)
+
     @staticmethod
     def _admin_order(o: dict) -> dict:
         coupon = o.get("coupon_code") or ("(当日)" if o.get("coupon_count") else None)
@@ -730,12 +774,12 @@ class Service:
             "created_at": o["created_at"],
             "channel": o["channel"],
             "name": o["name"],
-            "email": o.get("email", ""),
             "seats": o["seats"],
             "amount": o["amount"],
             "coupon_code": coupon,
             "status": o["status"],
             "checked_in": o.get("checked_in", 0),
+            "can_resend": Service._can_email(o),
         }
 
     def admin_orders(self) -> list[dict]:
@@ -766,7 +810,7 @@ class Service:
     def orders_csv(self) -> str:
         buf = io.StringIO()
         w = csv.writer(buf, quoting=csv.QUOTE_ALL, lineterminator="\r\n")
-        w.writerow(["注文ID", "日時", "経路", "氏名", "メール", "座席", "金額", "クーポン", "入場済"])
+        w.writerow(["注文ID", "日時", "経路", "氏名", "座席", "金額", "クーポン", "入場済"])
         for o in self._all_orders():
             if o["status"] != "PAID":
                 continue
@@ -778,7 +822,6 @@ class Service:
                     _jst(a["created_at"]),
                     a["channel"],
                     a["name"],
-                    a["email"],
                     " / ".join(seat_label(s) for s in a["seats"]),
                     a["amount"],
                     a["coupon_code"] or "",
@@ -789,7 +832,7 @@ class Service:
 
     def resend(self, order_id: str) -> None:
         order = self.db.get(db.order_key(order_id)) if 0 < len(order_id) <= 64 else None
-        if not order or order["status"] != "PAID" or not order.get("email"):
+        if not self._can_email(order):
             raise ApiError(404, "not_found", "メール送信できる注文が見つかりません")
         if not self.send_email(order_id):
             raise ApiError(502, "mail_failed", "メール送信に失敗しました")

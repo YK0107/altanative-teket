@@ -52,7 +52,7 @@ function Dashboard({ jwt, onExpired }: { jwt: string; onExpired: () => void }) {
     api.adminSummary(jwt).then(setSum, onErr)
     api.adminOrders(jwt).then(setOrders, onErr)
   }, [jwt, onExpired])
-  const filtered = orders.filter((o) => !q || `${o.name} ${o.email} ${o.order_id}`.toLowerCase().includes(q.toLowerCase()))
+  const filtered = orders.filter((o) => !q || `${o.name} ${o.order_id}`.toLowerCase().includes(q.toLowerCase()))
   const totalSold = sum ? Object.values(sum.sold).reduce((a, b) => a + b, 0) : 0
 
   return (
@@ -96,7 +96,7 @@ function Dashboard({ jwt, onExpired }: { jwt: string; onExpired: () => void }) {
               <tr>
                 <th>日時</th>
                 <th>経路</th>
-                <th>氏名 / メール</th>
+                <th>氏名</th>
                 <th>座席</th>
                 <th>金額</th>
                 <th>入場</th>
@@ -110,8 +110,6 @@ function Dashboard({ jwt, onExpired }: { jwt: string; onExpired: () => void }) {
                   <td>{o.channel === 'online' ? 'ネット' : '当日'}</td>
                   <td>
                     {o.name}
-                    <br />
-                    <small>{o.email}</small>
                   </td>
                   <td>{o.seats.map(seatLabelById).join('、')}</td>
                   <td>
@@ -122,8 +120,16 @@ function Dashboard({ jwt, onExpired }: { jwt: string; onExpired: () => void }) {
                     {o.checked_in}/{o.seats.length}
                   </td>
                   <td>
-                    {o.channel === 'online' && (
-                      <button className="small" onClick={() => api.adminResendEmail(jwt, o.order_id).then(() => alert('再送しました'))}>
+                    {o.can_resend && (
+                      <button
+                        className="small"
+                        onClick={() =>
+                          api.adminResendEmail(jwt, o.order_id).then(
+                            () => alert('再送しました'),
+                            (e) => alert(e instanceof ApiError ? e.message : '再送に失敗しました'),
+                          )
+                        }
+                      >
                         メール再送
                       </button>
                     )}
