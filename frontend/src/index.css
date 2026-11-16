@@ -1,8 +1,8 @@
 :root {
   --bg: #fff;
-  --ink: #1c1b1a;
-  --muted: #77736d;
-  --line: #e4e1dc;
+  --ink: #1a1a1a;
+  --muted: #757575;
+  --line: #e5e5e5;
   --accent: #9a1b34;
   --s: #2f62c9;
   --s-bg: #e2ebff;
@@ -12,7 +12,6 @@
   --w-bg: #ffe8d1;
   --sel: #9a1b34;
   --sans: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Yu Gothic Medium', 'Yu Gothic', YuGothic, 'Noto Sans JP', 'Noto Sans CJK JP', sans-serif;
-  --serif: 'Hiragino Mincho ProN', 'Yu Mincho', YuMincho, 'Noto Serif JP', 'Noto Serif CJK JP', serif;
   font-family: var(--sans);
   color: var(--ink);
   background: var(--bg);
@@ -23,22 +22,22 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-size: 0.9375rem; }
 a { color: inherit; text-underline-offset: 0.25em; text-decoration-thickness: 1px; }
-h1, h2 { font-family: var(--serif); font-weight: 600; letter-spacing: 0.04em; font-feature-settings: 'palt'; }
-h1 { font-size: 1.375rem; line-height: 1.5; margin: 0 0 1.5rem; }
+h1, h2 { font-weight: 600; letter-spacing: 0.02em; }
+h1 { font-size: 1.1875rem; line-height: 1.6; margin: 0 0 1.5rem; }
 h2 { font-size: 1.0625rem; margin: 0; }
 p { margin: 0 0 1em; }
 input, button { font: inherit; color: inherit; }
 input {
   width: 100%;
   padding: 0.65rem 0.75rem;
-  border: 1px solid #b9b5ae;
+  border: 1px solid #bdbdbd;
   border-radius: 2px;
   background: #fff;
   font-size: 1rem;
   line-height: 1.5;
 }
 input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-input::placeholder { color: #b3afa8; }
+input::placeholder { color: #b5b5b5; }
 button {
   padding: 0.6rem 1rem;
   border: 1px solid var(--ink);
@@ -59,7 +58,7 @@ button.primary, .button.primary {
   border-radius: 2px;
   color: #fff;
   font-size: 0.9375rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-decoration: none;
   text-align: center;
 }
@@ -75,15 +74,15 @@ button.small { padding: 0.25rem 0.6rem; font-size: 0.75rem; }
   padding: 1.1rem 1.25rem;
   border-bottom: 1px solid var(--line);
 }
-.site-header a { font-size: 0.8125rem; letter-spacing: 0.14em; text-decoration: none; }
-.mock-badge { font-size: 0.625rem; letter-spacing: 0.14em; color: var(--muted); }
+.site-header a { font-size: 0.8125rem; letter-spacing: 0.04em; text-decoration: none; }
+.mock-badge { font-size: 0.625rem; letter-spacing: 0.04em; color: var(--muted); }
 main { max-width: 880px; margin: 0 auto; padding: 2.75rem 1.25rem 8rem; }
 .page { display: flex; flex-direction: column; gap: 3rem; }
 .page.narrow { max-width: 34rem; margin: 0 auto; }
 .center { text-align: center; }
 .note { color: var(--muted); font-size: 0.75rem; line-height: 1.8; margin: 0; }
 .hint { color: var(--muted); font-size: 0.75rem; margin: 0.75rem 0 0; }
-.loading { padding: 4rem 0; text-align: center; color: var(--muted); font-size: 0.8125rem; letter-spacing: 0.1em; }
+.loading { padding: 4rem 0; text-align: center; color: var(--muted); font-size: 0.8125rem; letter-spacing: 0.04em; }
 .error { border-left: 2px solid #c0102c; color: #9b1030; padding: 0.1rem 0 0.1rem 0.75rem; font-size: 0.8125rem; margin: 0; }
 .ok { color: var(--a); font-size: 0.75rem; }
 .ng { color: #c0102c; font-size: 0.75rem; }
@@ -98,10 +97,10 @@ main { max-width: 880px; margin: 0 auto; padding: 2.75rem 1.25rem 8rem; }
 /* 公演情報 */
 .event-head h1 { font-size: clamp(1.625rem, 6.4vw, 2.375rem); line-height: 1.45; margin: 0 0 2.25rem; }
 .event-head h1 span { display: inline-block; margin-right: 0.5em; }
-.event-head h1 .org { display: block; font-family: var(--sans); font-size: 0.8125rem; font-weight: 400; letter-spacing: 0.16em; color: var(--muted); margin: 0 0 0.6rem; }
+.event-head h1 .org { display: block; font-size: 0.8125rem; font-weight: 400; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 0.6rem; }
 .event-head dl { display: grid; grid-template-columns: 4.5rem 1fr; margin: 0 0 1rem; border-bottom: 1px solid var(--line); }
 .event-head dt, .event-head dd { margin: 0; padding: 0.85rem 0; border-top: 1px solid var(--line); }
-.event-head dt { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.12em; line-height: 2.35; }
+.event-head dt { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.04em; line-height: 2.35; }
 .event-head dd { font-variant-numeric: tabular-nums; }
 .event-head dd span { display: inline-block; margin-right: 1.25em; }
 
@@ -117,12 +116,12 @@ main { max-width: 880px; margin: 0 auto; padding: 2.75rem 1.25rem 8rem; }
 .lg.cat-W::before { background: var(--w-bg); border-color: var(--w); }
 .lg.st-sel::before { background: var(--sel); border-color: var(--sel); }
 .lg.st-held::before { background: #eee; border-color: #aaa; border-style: dashed; }
-.lg.st-sold::before { background: #d4d2cd; border-color: #d4d2cd; }
+.lg.st-sold::before { background: #d6d6d6; border-color: #d6d6d6; }
 
-.seatmap { position: relative; border: 1px solid var(--line); background: #fbfaf8; overflow: hidden; }
+.seatmap { position: relative; border: 1px solid var(--line); background: #fff; overflow: hidden; }
 .seatmap svg { display: block; width: 100%; max-height: min(72vh, 620px); touch-action: none; user-select: none; -webkit-user-select: none; }
-.seatmap .stage rect { fill: #ebe8e2; }
-.seatmap .stage text { font-size: 6px; text-anchor: middle; fill: #77736d; letter-spacing: 0.1em; }
+.seatmap .stage rect { fill: #eee; }
+.seatmap .stage text { font-size: 6px; text-anchor: middle; fill: #757575; letter-spacing: 0.04em; }
 .seatmap .rowlabel { font-size: 5.5px; font-weight: 700; text-anchor: middle; fill: #555; pointer-events: none; }
 .seat { cursor: pointer; }
 .seat rect { stroke-width: 0.7; }
@@ -136,7 +135,7 @@ main { max-width: 880px; margin: 0 auto; padding: 2.75rem 1.25rem 8rem; }
 .seat.st-sel rect { fill: var(--sel); stroke: var(--sel); }
 .seat.st-sel text { fill: #fff; }
 .seat.st-sold, .seat.st-held { cursor: default; }
-.seat.st-sold rect { fill: #d4d2cd; stroke: #d4d2cd; }
+.seat.st-sold rect { fill: #d6d6d6; stroke: #d6d6d6; }
 .seat.st-sold text { fill: #fff; }
 .seat.st-held rect { fill: #eee; stroke: #aaa; stroke-dasharray: 1 0.8; }
 .seat.st-held text { fill: #aaa; }
@@ -174,7 +173,7 @@ main { max-width: 880px; margin: 0 auto; padding: 2.75rem 1.25rem 8rem; }
 .sel-list .price { font-variant-numeric: tabular-nums; }
 .sel-list .price s { color: var(--muted); font-size: 0.75rem; }
 .sel-list button.link { font-size: 0.75rem; }
-.chip { font-size: 0.6875rem; line-height: 1.6; padding: 0 0.45rem; border-radius: 2px; border: 1px solid; white-space: nowrap; letter-spacing: 0.04em; font-family: var(--sans); font-weight: 400; }
+.chip { font-size: 0.6875rem; line-height: 1.6; padding: 0 0.45rem; border-radius: 2px; border: 1px solid; white-space: nowrap; letter-spacing: 0.04em; font-weight: 400; }
 .chip.cat-S { color: var(--s); }
 .chip.cat-A { color: var(--a); }
 .chip.cat-W { color: var(--w); }
@@ -184,8 +183,8 @@ main { max-width: 880px; margin: 0 auto; padding: 2.75rem 1.25rem 8rem; }
 
 /* チケット */
 .ticket { display: flex; border: 1px solid var(--ink); border-radius: 3px; position: relative; }
-.ticket-main { flex: 1; padding: 1.25rem; border-right: 1px dashed #b9b5ae; }
-.ticket-event { font-family: var(--serif); font-weight: 600; font-size: 1.0625rem; line-height: 1.6; letter-spacing: 0.04em; }
+.ticket-main { flex: 1; padding: 1.25rem; border-right: 1px dashed #bdbdbd; }
+.ticket-event { font-weight: 600; font-size: 1.0625rem; line-height: 1.6; letter-spacing: 0.04em; }
 .ticket-event span { display: inline-block; margin-right: 0.5em; }
 .ticket-date { font-size: 0.75rem; color: var(--muted); margin: 0.6rem 0 1.1rem; }
 .ticket-seat { font-size: 1.1875rem; font-weight: 600; line-height: 1.5; display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
@@ -196,7 +195,7 @@ main { max-width: 880px; margin: 0 auto; padding: 2.75rem 1.25rem 8rem; }
 .used-stamp { position: absolute; transform: rotate(-8deg); border: 2px solid #c0102c; color: #c0102c; font-weight: 700; font-size: 0.875rem; padding: 0.1rem 0.6rem; background: rgba(255, 255, 255, 0.9); }
 .ticket-page { max-width: 26rem; margin: 0 auto; gap: 1.5rem; }
 .ticket-page .ticket { flex-direction: column; }
-.ticket-page .ticket-main { border-right: 0; border-bottom: 1px dashed #b9b5ae; padding: 1.75rem 1.5rem; }
+.ticket-page .ticket-main { border-right: 0; border-bottom: 1px dashed #bdbdbd; padding: 1.75rem 1.5rem; }
 .ticket-page .ticket-event { font-size: 1.25rem; }
 .ticket-page .ticket-seat { font-size: 1.375rem; }
 .ticket-page .ticket-qr { width: 100%; max-width: none; padding: 1.5rem; }
@@ -236,7 +235,7 @@ main { max-width: 880px; margin: 0 auto; padding: 2.75rem 1.25rem 8rem; }
 .admin-page h1 { margin-bottom: 0; }
 .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: 0 2rem; }
 .stat { padding: 0.9rem 0 1.4rem; border-top: 1px solid var(--line); }
-.stat .label { font-size: 0.6875rem; letter-spacing: 0.08em; color: var(--muted); }
+.stat .label { font-size: 0.6875rem; letter-spacing: 0.04em; color: var(--muted); }
 .stat .value { font-size: 1.375rem; font-weight: 600; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .orders .row.spread .row { flex: 0 1 22rem; }
 .table-wrap { overflow-x: auto; margin-top: 1.25rem; }
@@ -245,7 +244,7 @@ main { max-width: 880px; margin: 0 auto; padding: 2.75rem 1.25rem 8rem; }
 .table-wrap td:nth-child(4) { white-space: normal; min-width: 14rem; }
 table { border-collapse: collapse; width: 100%; font-size: 0.8125rem; line-height: 1.7; }
 th, td { border-bottom: 1px solid var(--line); padding: 0.8rem 1.25rem 0.8rem 0; text-align: left; vertical-align: top; }
-th { font-size: 0.6875rem; font-weight: 400; letter-spacing: 0.08em; color: var(--muted); white-space: nowrap; }
+th { font-size: 0.6875rem; font-weight: 400; letter-spacing: 0.04em; color: var(--muted); white-space: nowrap; }
 thead th { border-bottom-color: var(--ink); padding-bottom: 0.5rem; }
 td { font-variant-numeric: tabular-nums; }
 td small { color: var(--muted); }
