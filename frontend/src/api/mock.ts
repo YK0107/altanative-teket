@@ -90,6 +90,7 @@ function createOrder(st: State, seatIds: string[], name: string, coupon: string 
     coupon_code: coupon,
     status: 'PAID' as const,
     checked_in: channel === 'boxoffice' ? seatIds.length : 0,
+    can_resend: channel === 'online',
     tokens,
     order_key: rid(32),
   }

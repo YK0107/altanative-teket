@@ -4,6 +4,7 @@
     uv run python -m app.cli seed-seats                         # 座席の初期登録（既存の座席は変更しない）
     uv run python -m app.cli import-coupons coupons.txt         # クーポンコード（1行1個）
     uv run python -m app.cli hash-password                      # 管理者パスワードのハッシュを生成
+    uv run python -m app.cli purge-emails [--all]               # 注文に残ったメールを削除（--all: 未送信分も）
 
 TABLE_NAME / EVENT_ID は環境変数で指定する。
 """
@@ -21,7 +22,7 @@ from app import db
 from app.auth import hash_password
 from app.config import get_settings
 from app.seats import all_seats
-from app.service import normalize_coupon
+from app.service import normalize_coupon, purge_emails
 
 EVENT_FIELDS = (
     "name",
@@ -101,6 +102,7 @@ def main(argv: list[str] | None = None) -> None:
     sub.add_parser("seed-seats")
     sub.add_parser("import-coupons").add_argument("path", type=Path)
     sub.add_parser("hash-password")
+    sub.add_parser("purge-emails").add_argument("--all", action="store_true", dest="include_unsent")
     a = p.parse_args(argv)
 
     if a.cmd == "hash-password":
@@ -117,6 +119,8 @@ def main(argv: list[str] | None = None) -> None:
         seed_seats(d, s.event_id)
     elif a.cmd == "import-coupons":
         import_coupons(d, a.path)
+    elif a.cmd == "purge-emails":
+        print(f"emails removed: {purge_emails(d, s.event_id, a.include_unsent)}")
 
 
 if __name__ == "__main__":

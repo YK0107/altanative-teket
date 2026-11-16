@@ -284,3 +284,21 @@ def test_seed_event_normalizes_timezone(env, tmp_path):
     p.write_text(json.dumps(data))
     cli.seed_event(env, "evt_tz", p)
     assert env.get({"pk": "EVENT#evt_tz", "sk": "META"})["sales_start"] == "2026-12-01T01:00:00Z"
+
+
+def test_purge_emails_and_can_resend(svc):
+    svc.mailer.fail = True
+    pending = svc.checkout(["WC-1"], "SAMPLE500", "未送信", "w@example.com")["order_id"]
+    svc.mailer.fail = False
+    sent = svc.checkout(["WC-2"], "SAMPLE500", "送信済", "x@example.com")["order_id"]
+    # 旧データ（メールを保存していた頃の送信済み注文）を再現
+    svc.db.table.update_item(
+        Key=db.order_key(sent), UpdateExpression="SET email = :e", ExpressionAttributeValues={":e": "x@example.com"}
+    )
+    assert svc.purge_emails() == 1  # 送信待ちの0円注文は残す
+    assert (svc.db.get(db.order_key(pending)) or {})["email"] == "w@example.com"
+    assert "email" not in (svc.db.get(db.order_key(sent)) or {})
+    rows = {o["order_id"]: o["can_resend"] for o in svc.admin_orders()}
+    assert rows == {pending: True, sent: False}
+    assert svc.purge_emails(include_unsent=True) == 1
+    assert "email" not in (svc.db.get(db.order_key(pending)) or {})

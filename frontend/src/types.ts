@@ -118,4 +118,5 @@ export interface AdminOrder {
   coupon_code: string | null
   status: OrderInfo['status']
   checked_in: number
+  can_resend: boolean // 送信先を取得できる注文か（送信済みの0円注文・当日券は不可）
 }

@@ -99,6 +99,27 @@ def _jst(iso_str: str) -> str:
     return f"{dt.year}年{dt.month}月{dt.day}日（{wd}）{dt.hour:02d}:{dt.minute:02d}"
 
 
+def purge_emails(d: Db, event_id: str, include_unsent: bool = False) -> int:
+    """注文に残っているメールを削除する。
+
+    通常は送信待ちの0円注文（PAID かつ未送信）だけ残す。include_unsent=True なら全注文から消す（公演後など）。
+    """
+    n = 0
+    orders = d.query_all(
+        IndexName="gsi1",
+        KeyConditionExpression="gsi1pk = :p",
+        ExpressionAttributeValues={":p": db.event_pk(event_id)},
+    )
+    for o in orders:
+        if "email" not in o:
+            continue
+        if not include_unsent and o["status"] == "PAID" and not o.get("email_sent"):
+            continue
+        d.table.update_item(Key=db.order_key(o["order_id"]), UpdateExpression="REMOVE email")
+        n += 1
+    return n
+
+
 @dataclass
 class Service:
     settings: Settings
@@ -579,7 +600,11 @@ class Service:
         )
         try:
             self.mailer.send(replace(mail, to=self._recipient(order, email)))
-        except Exception:
+        except Exception as e:
+            # 例外メッセージに宛先が含まれることがある(SES など)ため、型とエラーコードだけ記録する
+            reason = type(e).__name__
+            if isinstance(err := getattr(e, "response", None), dict):
+                reason += f"/{err.get('Error', {}).get('Code', '')}"
             attempts = order.get("email_attempts", 0) + 1
             give_up = attempts >= MAX_EMAIL_ATTEMPTS
             # 送れなかったメールは定期回収で再送。上限に達したら再送対象から外し、手動対応（管理画面から再送）に回す
@@ -589,9 +614,9 @@ class Service:
                 ExpressionAttributeValues={":n": attempts},
             )
             if give_up:
-                log.error("EMAIL_GAVE_UP order=%s attempts=%s", order_id, attempts, exc_info=True)
+                log.error("EMAIL_GAVE_UP order=%s attempts=%s reason=%s", order_id, attempts, reason)
             else:
-                log.warning("send email failed order=%s attempts=%s", order_id, attempts, exc_info=True)
+                log.warning("send email failed order=%s attempts=%s reason=%s", order_id, attempts, reason)
             return False
         self.db.table.update_item(
             Key=db.order_key(order_id),
@@ -738,6 +763,9 @@ class Service:
             ScanIndexForward=False,
         )
 
+    def purge_emails(self, include_unsent: bool = False) -> int:
+        return purge_emails(self.db, self.event_id, include_unsent)
+
     @staticmethod
     def _admin_order(o: dict) -> dict:
         coupon = o.get("coupon_code") or ("(当日)" if o.get("coupon_count") else None)
@@ -751,6 +779,7 @@ class Service:
             "coupon_code": coupon,
             "status": o["status"],
             "checked_in": o.get("checked_in", 0),
+            "can_resend": Service._can_email(o),
         }
 
     def admin_orders(self) -> list[dict]:

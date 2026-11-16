@@ -120,8 +120,16 @@ function Dashboard({ jwt, onExpired }: { jwt: string; onExpired: () => void }) {
                     {o.checked_in}/{o.seats.length}
                   </td>
                   <td>
-                    {o.channel === 'online' && (
-                      <button className="small" onClick={() => api.adminResendEmail(jwt, o.order_id).then(() => alert('再送しました'))}>
+                    {o.can_resend && (
+                      <button
+                        className="small"
+                        onClick={() =>
+                          api.adminResendEmail(jwt, o.order_id).then(
+                            () => alert('再送しました'),
+                            (e) => alert(e instanceof ApiError ? e.message : '再送に失敗しました'),
+                          )
+                        }
+                      >
                         メール再送
                       </button>
                     )}
