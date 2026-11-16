@@ -47,7 +47,7 @@ export function PurchaseSuccess() {
         {order?.status === 'PENDING' && !err && <p>決済を確認しています…</p>}
         {order?.status === 'PAID' && (
           <p>
-            チケットを <b>{order.email}</b> にお送りしました。
+            ご入力のメールアドレスにチケットをお送りしました。
             <br />
             メールが届かない場合も、下のチケットを当日ご提示いただければ入場できます。
             <br />

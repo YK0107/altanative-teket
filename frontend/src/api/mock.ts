@@ -56,7 +56,7 @@ function soldIds(st: State) {
   return new Set([...BASE_SOLD, ...st.orders.flatMap((o) => o.seats)])
 }
 
-function createOrder(st: State, seatIds: string[], name: string, email: string, coupon: string | null, channel: 'online' | 'boxoffice', couponCount: number) {
+function createOrder(st: State, seatIds: string[], name: string, coupon: string | null, channel: 'online' | 'boxoffice', couponCount: number) {
   const sold = soldIds(st)
   for (const id of seatIds) {
     if (sold.has(id) || BASE_HELD.includes(id)) throw new ApiError(409, 'seat_taken', `${seatLabelById(id)} は${BASE_HELD.includes(id) ? '他の方が購入手続き中' : '販売済み'}です`)
@@ -85,7 +85,6 @@ function createOrder(st: State, seatIds: string[], name: string, email: string, 
     created_at: new Date().toISOString(),
     channel,
     name,
-    email,
     seats: seatIds,
     amount: total,
     coupon_code: coupon,
@@ -100,7 +99,7 @@ function createOrder(st: State, seatIds: string[], name: string, email: string, 
 }
 
 function toOrderInfo(st: State, o: State['orders'][number]): OrderInfo {
-  return { order_id: o.order_id, status: o.status, email: o.email, tickets: o.tokens.map((t) => st.tickets[t]) }
+  return { order_id: o.order_id, status: o.status, tickets: o.tokens.map((t) => st.tickets[t]) }
 }
 
 export const mockApi: Api = {
@@ -124,7 +123,7 @@ export const mockApi: Api = {
     if (coupon && !COUPONS.has(coupon)) throw new ApiError(400, 'bad_coupon', 'クーポンコードが無効です')
     const st = load()
     // モックでは Stripe を経由せず即決済完了扱い
-    const o = createOrder(st, req.seat_ids, req.name, req.email, coupon, 'online', coupon ? req.seat_ids.length : 0)
+    const o = createOrder(st, req.seat_ids, req.name, coupon, 'online', coupon ? req.seat_ids.length : 0)
     return { order_id: o.order_id, order_key: o.order_key }
   },
   async cancelCheckout() {
@@ -178,7 +177,7 @@ export const mockApi: Api = {
     const s = q.trim().toLowerCase()
     if (!s) return []
     return load()
-      .orders.filter((o) => o.name.toLowerCase().includes(s) || o.email.toLowerCase().includes(s) || o.order_id.includes(s))
+      .orders.filter((o) => o.name.toLowerCase().includes(s) || o.order_id.includes(s))
       .map(({ order_key: _k, tokens: _t, ...o }) => o)
   },
   async staffCheckinOrder(key, orderId) {
@@ -195,7 +194,7 @@ export const mockApi: Api = {
     await wait()
     if (key !== STAFF_KEY) throw new ApiError(401, 'unauthorized', '受付URLが無効です')
     const st = load()
-    const o = createOrder(st, req.seat_ids, '当日券', '', req.coupon_count > 0 ? '(当日)' : null, 'boxoffice', req.coupon_count)
+    const o = createOrder(st, req.seat_ids, '当日券', req.coupon_count > 0 ? '(当日)' : null, 'boxoffice', req.coupon_count)
     return { order_id: o.order_id, amount: o.amount }
   },
   async adminLogin(password) {
@@ -228,9 +227,9 @@ export const mockApi: Api = {
     await wait()
   },
   async adminCsvUrl() {
-    const rows = [['注文ID', '日時', '経路', '氏名', 'メール', '座席', '金額', 'クーポン', '入場済']]
+    const rows = [['注文ID', '日時', '経路', '氏名', '座席', '金額', 'クーポン', '入場済']]
     for (const o of load().orders) {
-      rows.push([o.order_id, o.created_at, o.channel, o.name, o.email, o.seats.map(seatLabelById).join(' / '), String(o.amount), o.coupon_code ?? '', String(o.checked_in)])
+      rows.push([o.order_id, o.created_at, o.channel, o.name, o.seats.map(seatLabelById).join(' / '), String(o.amount), o.coupon_code ?? '', String(o.checked_in)])
     }
     // CSVインジェクション対策: 数式扱いされる先頭文字をエスケープ
     const cell = (c: string) => `"${(/^[=+\-@\t\r]/.test(c) ? "'" + c : c).replaceAll('"', '""')}"`

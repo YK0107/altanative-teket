@@ -80,7 +80,6 @@ export interface TicketInfo {
 export interface OrderInfo {
   order_id: string
   status: 'PENDING' | 'PAID' | 'EXPIRED' | 'REFUNDED'
-  email: string
   tickets: TicketInfo[]
 }
 
@@ -114,7 +113,6 @@ export interface AdminOrder {
   created_at: string
   channel: 'online' | 'boxoffice'
   name: string
-  email: string
   seats: string[]
   amount: number
   coupon_code: string | null
