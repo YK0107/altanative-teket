@@ -136,11 +136,11 @@ for k, (x, y) in enumerate(wheel, 1):
     seats.append(dict(x=x, y=y, num=k, row="車椅子", area="1", rot=15.0 if x < W / 2 else -15.0, wc=True))
 
 # ---- 階ごとの配置変換 ----
-# 2階バルコニーは紙面上1階(舞台)の両脇に描かれている。舞台との位置関係は紙面どおりに保ち、
-# 2階本体との間(1階客席ぶん)だけ縦に詰める
+# 2階バルコニー(LB/RB)は紙面上1階(舞台)の両脇に描かれている。
+# 2階の図では舞台の外形を描き、バルコニーを舞台の横に寄せる。2階本体との間(1階客席ぶん)は縦に詰める
 BALCONY_DY = 120
-SHIFT = {"2LB": (0, BALCONY_DY), "2RB": (0, BALCONY_DY)}
-# 舞台の外形(紙面のピンクの台形)。2階の図でバルコニーの間に描く
+BALCONY_GAP = 8  # バルコニー席(中心)と舞台の縁との最小距離
+# 舞台の外形(紙面のピンクの台形)
 stage_shapes = [
     o
     for o in pg.curves
@@ -151,6 +151,29 @@ stage_pts: list[tuple[float, float]] = []
 for px, py in stage_shapes[0]["pts"]:
     if (px, py) not in stage_pts:
         stage_pts.append((px, py))
+
+
+def dist_to_stage(x: float, y: float) -> float:
+    best = math.inf
+    for (ax, ay), (bx, by) in zip(stage_pts, stage_pts[1:] + stage_pts[:1]):
+        vx, vy = bx - ax, by - ay
+        t = max(0.0, min(1.0, ((x - ax) * vx + (y - ay) * vy) / (vx * vx + vy * vy)))
+        best = min(best, math.dist((x, y), (ax + t * vx, ay + t * vy)))
+    return best
+
+
+def balcony_dx(area: str, sign: int) -> float:
+    pts = [(s["x"], s["y"]) for s in seats if s.get("area") == area]
+    dx = 0.0
+    while min(dist_to_stage(x + dx + sign * 0.5, y) for x, y in pts) > BALCONY_GAP:
+        dx += sign * 0.5
+    return dx
+
+
+SHIFT = {
+    "2LB": (balcony_dx("2LB", 1), BALCONY_DY),
+    "2RB": (balcony_dx("2RB", -1), BALCONY_DY),
+}
 STAGE = {2: [[round(px, 1), round(py + BALCONY_DY, 1)] for px, py in stage_pts]}
 AREA_NAME = {
     "1": "1階", "1LB": "1階LB", "1RB": "1階RB",
