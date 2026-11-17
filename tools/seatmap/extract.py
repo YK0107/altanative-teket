@@ -155,7 +155,7 @@ for px, py in stage_shapes[0]["pts"]:
 
 def dist_to_stage(x: float, y: float) -> float:
     best = math.inf
-    for (ax, ay), (bx, by) in zip(stage_pts, stage_pts[1:] + stage_pts[:1]):
+    for (ax, ay), (bx, by) in zip(stage_pts, stage_pts[1:] + stage_pts[:1], strict=True):
         vx, vy = bx - ax, by - ay
         t = max(0.0, min(1.0, ((x - ax) * vx + (y - ay) * vy) / (vx * vx + vy * vy)))
         best = min(best, math.dist((x, y), (ax + t * vx, ay + t * vy)))
