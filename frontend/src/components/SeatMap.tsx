@@ -12,6 +12,19 @@ interface Props {
 
 type VB = [number, number, number, number]
 const STAGE_X = 429.4
+/** 全体表示の外側へ動かせる余白（全体表示の幅・高さに対する割合） */
+const PAN_MARGIN = 0.08
+
+/** 表示範囲を「全体表示＋余白」の内側に収める */
+function clampVb(v: VB, base: VB): VB {
+  const w = Math.min(v[2], base[2])
+  const h = (w * base[3]) / base[2]
+  const mx = base[2] * PAN_MARGIN
+  const my = base[3] * PAN_MARGIN
+  const x = Math.min(base[0] + base[2] + mx - w, Math.max(base[0] - mx, v[0]))
+  const y = Math.min(base[1] + base[3] + my - h, Math.max(base[1] - my, v[1]))
+  return [x, y, w, h]
+}
 
 export function SeatMap({ floor, sold, held, selected, onToggle }: Props) {
   const fdef = seatMap.floors.find((f) => f.f === floor)!
@@ -40,11 +53,11 @@ export function SeatMap({ floor, sold, held, selected, onToggle }: Props) {
   const zoomAt = (cx: number, cy: number, factor: number) => {
     setVb((v) => {
       const minW = fdef.viewBox[2] / 8
-      const maxW = fdef.viewBox[2] * 1.2
+      const maxW = fdef.viewBox[2]
       const nw = Math.min(maxW, Math.max(minW, v[2] / factor))
       const f = v[2] / nw
       const [px, py] = toSvg(cx, cy, v)
-      return [px - (px - v[0]) / f, py - (py - v[1]) / f, nw, v[3] / f]
+      return clampVb([px - (px - v[0]) / f, py - (py - v[1]) / f, nw, v[3] / f], fdef.viewBox)
     })
   }
 
@@ -78,7 +91,7 @@ export function SeatMap({ floor, sold, held, selected, onToggle }: Props) {
       gesture.current.moved += Math.abs(dx) + Math.abs(dy)
       if (gesture.current.moved > 6) {
         const u = unit()
-        setVb((v) => [v[0] - dx * u, v[1] - dy * u, v[2], v[3]])
+        setVb((v) => clampVb([v[0] - dx * u, v[1] - dy * u, v[2], v[3]], fdef.viewBox))
       }
     } else if (pointers.current.size === 2) {
       const [a, b] = [...pointers.current.entries()].map(([id, p]) => (id === e.pointerId ? cur : p))
@@ -119,12 +132,21 @@ export function SeatMap({ floor, sold, held, selected, onToggle }: Props) {
         role="application"
         aria-label={`${fdef.name}座席表`}
       >
-        <g className="stage">
-          <rect x={STAGE_X - 60} y={fdef.viewBox[1] + 2} width={120} height={14} rx={3} />
-          <text x={STAGE_X} y={fdef.viewBox[1] + 11.5}>
-            {floor === 1 ? 'ステージ' : 'ステージ方向'}
-          </text>
-        </g>
+        {fdef.stage ? (
+          <g className="stage">
+            <polygon points={fdef.stage.map((p) => p.join(',')).join(' ')} />
+            <text x={STAGE_X} y={(Math.min(...fdef.stage.map((p) => p[1])) + Math.max(...fdef.stage.map((p) => p[1]))) / 2 + 3} className="big">
+              舞台
+            </text>
+          </g>
+        ) : (
+          <g className="stage">
+            <rect x={STAGE_X - 60} y={fdef.viewBox[1] + 2} width={120} height={14} rx={3} />
+            <text x={STAGE_X} y={fdef.viewBox[1] + 11.5}>
+              {floor === 1 ? 'ステージ' : 'ステージ方向'}
+            </text>
+          </g>
+        )}
         {labels.map((l, i) => (
           <text key={i} className="rowlabel" x={l.x} y={l.y + 1.6}>
             {l.t}
