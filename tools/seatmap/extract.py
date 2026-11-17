@@ -167,6 +167,7 @@ def balcony_dx(area: str, sign: int) -> float:
     dx = 0.0
     while min(dist_to_stage(x + dx + sign * 0.5, y) for x, y in pts) > BALCONY_GAP:
         dx += sign * 0.5
+        assert abs(dx) < 500, f"{area}: 舞台に寄せられない(PDFの配置が変わった可能性)"
     return dx
 
 
@@ -216,8 +217,8 @@ cnt = collections.Counter(s["f"] for s in out_seats if s["c"] != "W")
 assert (cnt[1], cnt[2], cnt[3]) == (676, 683, 640), cnt
 floors = []
 for f in (1, 2, 3):
-    xs = [s["x"] for s in out_seats if s["f"] == f]
-    ys = [s["y"] for s in out_seats if s["f"] == f]
+    xs = [s["x"] for s in out_seats if s["f"] == f] + [p[0] for p in STAGE.get(f, [])]
+    ys = [s["y"] for s in out_seats if s["f"] == f] + [p[1] for p in STAGE.get(f, [])]
     pad = 18
     # 舞台の外形を描かない階は、上端に「ステージ方向」の帯を置く余白を足す
     top = 0 if f in STAGE else 25
